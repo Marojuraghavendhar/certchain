@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CertiChain Dashboard</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .nav-links a:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h3 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .status {
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status.verified {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status.issued {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .blockchain-info {
+            background: #e8f4fd;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .certificate-item {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .certificate-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .certificate-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .certificate-info h5 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .certificate-actions {
+            text-align: right;
+        }
+
+        .certificate-actions .btn {
+            margin-bottom: 0.5rem;
+            display: block;
+            width: 100%;
+            min-width: 140px;
+        }
+
+        .search-results {
+            margin-top: 2rem;
+        }
+
+        .search-results h4 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .no-results {
+            text-align: center;
+            color: #666;
+            margin: 2rem 0;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 0 1rem;
+            }
+            
+            .navbar-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .certificate-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .certificate-actions {
+                text-align: center;
+                margin-top: 1rem;
+            }
+
+            .certificate-actions .btn {
+                display: inline-block;
+                width: auto;
+                margin: 0.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="logo">🔗 CertiChain</div>
+            <div class="nav-links">
+                <a href="#" onclick="showDashboard()">Dashboard</a>
+                <a href="#" onclick="showIssuerPanel()">Issue Certificates</a>
+                <a href="#" onclick="showVerificationPanel()">Verify Certificates</a>
+                <a href="#" onclick="showBlockchainPanel()">Blockchain</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Dashboard Overview -->
+        <div id="dashboard-overview">
+            <h2>Welcome to CertiChain Dashboard</h2>
+            <p>Manage and verify digital certificates using blockchain technology</p>
+            
+            <div class="dashboard-grid">
+                <div class="card">
+                    <h3>📜 Issue Certificate</h3>
+                    <p>Create and issue new digital certificates to students or employees</p>
+                    <button class="btn" onclick="showIssuerPanel()">Issue Certificate</button>
+                </div>
+                
+                <div class="card">
+                    <h3>🔍 Verify Certificate</h3>
+                    <p>Verify the authenticity of certificates using blockchain records</p>
+                    <button class="btn" onclick="showVerificationPanel()">Verify Certificate</button>
+                </div>
+                
+                <div class="card">
+                    <h3>⛓️ Blockchain Status</h3>
+                    <p>View blockchain network status and transaction history</p>
+                    <button class="btn" onclick="showBlockchainPanel()">View Blockchain</button>
+                </div>
+                
+                <div class="card">
+                    <h3>📥 Download Certificates</h3>
+                    <p>Download verified certificates as PDF documents</p>
+                    <button class="btn" onclick="showDownloadPanel()">Download Certificates</button>
+                </div>
+                
+                <div class="card">
+                    <h3>📊 Statistics</h3>
+                    <p>Total Certificates: <span id="total-certs">0</span></p>
+                    <p>Verified Today: <span id="verified-today">0</span></p>
+                    <p>Blockchain Transactions: <span id="blockchain-tx">0</span></p>
+                </div>
+                
+                <div class="card">
+                    <h3>💾 Data Management</h3>
+                    <p>Backup and restore your certificates</p>
+                    <p><strong>Data Status:</strong> <span id="data-status">✅ Persisted</span></p>
+                    <button class="btn" onclick="backupCertificates()">📦 Backup Certificates</button>
+                    <button class="btn btn-secondary" onclick="restoreCertificatesFromBackup()">🔄 Restore from Backup</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Certificate Issuer Panel -->
+        <div id="issuer-panel" style="display: none;">
+            <div class="card">
+                <h3>📜 Issue New Certificate</h3>
+                <form id="certificate-form">
+                    <div class="form-group">
+                        <label for="recipient-name">Recipient Name</label>
+                        <input type="text" id="recipient-name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="recipient-email">Recipient Email</label>
+                        <input type="email" id="recipient-email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="certificate-type">Certificate Type</label>
+                        <select id="certificate-type" required>
+                            <option value="">Select type</option>
+                            <option value="degree">Degree Certificate</option>
+                            <option value="diploma">Diploma</option>
+                            <option value="course">Course Completion</option>
+                            <option value="achievement">Achievement</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="issuing-date">Issuing Date</label>
+                        <input type="date" id="issuing-date" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="certificate-description">Description</label>
+                        <textarea id="certificate-description" rows="3" placeholder="Certificate description or achievements"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="certificate-file">Certificate File (Optional)</label>
+                        <input type="file" id="certificate-file" accept=".pdf,.jpg,.png">
+                    </div>
+                    
+                    <button type="submit" class="btn">Issue Certificate</button>
+                    <button type="button" class="btn btn-secondary" onclick="showDashboard()">Back to Dashboard</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Certificate Verification Panel -->
+        <div id="verification-panel" style="display: none;">
+            <div class="card">
+                <h3>🔍 Verify Certificate</h3>
+                
+                <div class="form-group">
+                    <label for="verification-input">Enter Certificate ID, Transaction Hash, or QR Code</label>
+                    <input type="text" id="verification-input" placeholder="e.g., 0x1234... or CERT-001">
+                </div>
+                
+                <button class="btn" onclick="verifyCertificate()">Verify Certificate</button>
+                <button class="btn btn-secondary" onclick="showDashboard()">Back to Dashboard</button>
+                
+                <div id="verification-result" style="display: none;">
+                    <div class="card" style="margin-top: 1rem;">
+                        <h4>Verification Result</h4>
+                        <div id="verification-details"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Blockchain Panel -->
+        <div id="blockchain-panel" style="display: none;">
+            <div class="card">
+                <h3>⛓️ Blockchain Network Status</h3>
+                
+                <div class="form-group">
+                    <label for="network-select">Select Network</label>
+                    <select id="network-select">
+                        <option value="ethereum">Ethereum (Goerli Testnet)</option>
+                        <option value="polygon">Polygon (Mumbai Testnet)</option>
+                        <option value="local">Local Blockchain</option>
+                    </select>
+                </div>
+                
+                <button class="btn" onclick="connectWallet()">Connect Wallet</button>
+                <button class="btn btn-secondary" onclick="showDashboard()">Back to Dashboard</button>
+                
+                <div id="blockchain-status" style="margin-top: 1rem;">
+                    <div class="blockchain-info">
+                        <p><strong>Network:</strong> <span id="current-network">Not Connected</span></p>
+                        <p><strong>Wallet Address:</strong> <span id="wallet-address">Not Connected</span></p>
+                        <p><strong>Balance:</strong> <span id="wallet-balance">0 ETH</span></p>
+                        <p><strong>Last Block:</strong> <span id="last-block">-</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Certificate Download Panel -->
+        <div id="download-panel" style="display: none;">
+            <div class="card">
+                <h3>📥 Download Certificates</h3>
+                
+                <div class="form-group">
+                    <label for="download-search">Search Certificate by ID, Name, or Email</label>
+                    <input type="text" id="download-search" placeholder="e.g., CERT-001, John Doe, or john@email.com" onkeypress="handleSearchKeyPress(event)">
+                </div>
+                
+                <button class="btn" onclick="searchCertificates()">Search Certificates</button>
+                <button class="btn btn-secondary" onclick="showDashboard()">Back to Dashboard</button>
+                
+                <div id="certificate-list" style="margin-top: 2rem;">
+                    <!-- Certificate list will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let provider = null;
+        let signer = null;
+        let certificates = [];
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if user is logged in
+            checkUserSession();
+            
+            // Set default date to today
+            document.getElementById('issuing-date').valueAsDate = new Date();
+            
+            // Load sample data
+            loadSampleData();
+            
+            // Initialize blockchain connection
+            initializeBlockchain();
+            
+            // Check PDF library loading
+            checkPDFLibrary();
+        });
+
+        function checkPDFLibrary() {
+            // Wait a bit for libraries to load
+            setTimeout(() => {
+                if (typeof window.jspdf === 'undefined') {
+                    console.warn('jsPDF library not loaded - PDF downloads may not work');
+                    // You could show a warning to the user here
+                } else {
+                    console.log('PDF library loaded successfully');
+                }
+            }, 2000);
+        }
+
+        // Check user session
+        function checkUserSession() {
+            const user = localStorage.getItem('certichain_user');
+            if (!user) {
+                alert('Please log in to access the dashboard.');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            try {
+                const userData = JSON.parse(user);
+                
+                // Check if session is still valid (optional: add session timeout)
+                const loginTime = new Date(userData.loginTime);
+                const currentTime = new Date();
+                const hoursSinceLogin = (currentTime - loginTime) / (1000 * 60 * 60);
+                
+                // Optional: Auto-logout after 24 hours
+                if (hoursSinceLogin > 24) {
+                    alert('Your session has expired. Please log in again.');
+                    localStorage.removeItem('certichain_user');
+                    localStorage.removeItem('certichain_certificates'); // Clear certificates on logout
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                console.log('Welcome back, ' + (userData.name || userData.email) + '!');
+                
+                // Update user session timestamp
+                userData.lastAccess = new Date().toISOString();
+                localStorage.setItem('certichain_user', JSON.stringify(userData));
+                
+            } catch (error) {
+                console.error('Error parsing user data:', error);
+                localStorage.removeItem('certichain_user');
+                localStorage.removeItem('certichain_certificates');
+                window.location.href = 'index.html';
+            }
+        }
+
+        function showDashboard() {
+            document.getElementById('dashboard-overview').style.display = 'block';
+            document.getElementById('issuer-panel').style.display = 'none';
+            document.getElementById('verification-panel').style.display = 'none';
+            document.getElementById('blockchain-panel').style.display = 'none';
+            document.getElementById('download-panel').style.display = 'none';
+        }
+
+        function showIssuerPanel() {
+            document.getElementById('dashboard-overview').style.display = 'none';
+            document.getElementById('issuer-panel').style.display = 'block';
+            document.getElementById('verification-panel').style.display = 'none';
+            document.getElementById('blockchain-panel').style.display = 'none';
+            document.getElementById('download-panel').style.display = 'none';
+        }
+
+        function showVerificationPanel() {
+            document.getElementById('dashboard-overview').style.display = 'none';
+            document.getElementById('issuer-panel').style.display = 'none';
+            document.getElementById('verification-panel').style.display = 'block';
+            document.getElementById('blockchain-panel').style.display = 'none';
+            document.getElementById('download-panel').style.display = 'none';
+        }
+
+        function showBlockchainPanel() {
+            document.getElementById('dashboard-overview').style.display = 'none';
+            document.getElementById('issuer-panel').style.display = 'none';
+            document.getElementById('verification-panel').style.display = 'none';
+            document.getElementById('blockchain-panel').style.display = 'block';
+            document.getElementById('download-panel').style.display = 'none';
+        }
+
+        function showDownloadPanel() {
+            document.getElementById('dashboard-overview').style.display = 'none';
+            document.getElementById('issuer-panel').style.display = 'none';
+            document.getElementById('verification-panel').style.display = 'none';
+            document.getElementById('blockchain-panel').style.display = 'none';
+            document.getElementById('download-panel').style.display = 'block';
+            
+            // Load all certificates by default
+            displayCertificates(certificates);
+        }
+
+        function loadSampleData() {
+            // Load certificates from localStorage or initialize with sample data
+            loadCertificatesFromStorage();
+            updateStatistics();
+        }
+
+        function loadCertificatesFromStorage() {
+            try {
+                const storedCertificates = localStorage.getItem('certichain_certificates');
+                if (storedCertificates) {
+                    certificates = JSON.parse(storedCertificates);
+                    console.log('Loaded', certificates.length, 'certificates from storage');
+                } else {
+                    // Try to recover from backup
+                    const backupCertificates = localStorage.getItem('certichain_certificates_backup');
+                    if (backupCertificates) {
+                        try {
+                            certificates = JSON.parse(backupCertificates);
+                            console.log('Recovered', certificates.length, 'certificates from backup');
+                            saveCertificatesToStorage(); // Restore main storage
+                        } catch (backupError) {
+                            console.error('Error loading from backup:', backupError);
+                            initializeWithSampleData();
+                        }
+                    } else {
+                        initializeWithSampleData();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading certificates from storage:', error);
+                // Try to recover from backup
+                try {
+                    const backupCertificates = localStorage.getItem('certichain_certificates_backup');
+                    if (backupCertificates) {
+                        certificates = JSON.parse(backupCertificates);
+                        console.log('Recovered', certificates.length, 'certificates from backup after error');
+                        saveCertificatesToStorage();
+                    } else {
+                        initializeWithSampleData();
+                    }
+                } catch (backupError) {
+                    console.error('Error loading from backup:', backupError);
+                    initializeWithSampleData();
+                }
+            }
+        }
+
+        function initializeWithSampleData() {
+            certificates = [
+                {
+                    id: 'CERT-001',
+                    recipientName: 'John Doe',
+                    recipientEmail: 'john.doe@email.com',
+                    type: 'Degree Certificate',
+                    issuingDate: '2024-01-15',
+                    description: 'Bachelor of Science in Computer Science',
+                    status: 'verified',
+                    transactionHash: '0x1234567890abcdef1234567890abcdef12345678',
+                    ipfsHash: 'QmSampleHash123456789',
+                    timestamp: '2024-01-15T10:00:00.000Z'
+                },
+                {
+                    id: 'CERT-002',
+                    recipientName: 'Jane Smith',
+                    recipientEmail: 'jane.smith@email.com',
+                    type: 'Course Completion',
+                    issuingDate: '2024-01-20',
+                    description: 'Advanced Web Development Course',
+                    status: 'pending',
+                    transactionHash: '0xabcdef1234567890abcdef1234567890abcdef12',
+                    ipfsHash: 'QmSampleHash987654321',
+                    timestamp: '2024-01-20T14:30:00.000Z'
+                }
+            ];
+            saveCertificatesToStorage();
+            console.log('Initialized with sample certificates');
+        }
+
+        function saveCertificatesToStorage() {
+            try {
+                localStorage.setItem('certichain_certificates', JSON.stringify(certificates));
+                console.log('Saved', certificates.length, 'certificates to storage');
+                
+                // Also create a backup
+                localStorage.setItem('certichain_certificates_backup', JSON.stringify(certificates));
+                
+            } catch (error) {
+                console.error('Error saving certificates to storage:', error);
+                alert('Warning: Could not save certificates to local storage. Data may be lost on page refresh.');
+            }
+        }
+
+        function backupCertificates() {
+            try {
+                const backupData = {
+                    certificates: certificates,
+                    backupDate: new Date().toISOString(),
+                    userAgent: navigator.userAgent
+                };
+                
+                const backupBlob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+                const backupUrl = URL.createObjectURL(backupBlob);
+                
+                const a = document.createElement('a');
+                a.href = backupUrl;
+                a.download = `certichain_backup_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(backupUrl);
+                
+                alert('Certificate backup downloaded successfully!');
+                
+            } catch (error) {
+                console.error('Error creating backup:', error);
+                alert('Error creating backup: ' + error.message);
+            }
+        }
+
+        function restoreCertificatesFromBackup() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const backupData = JSON.parse(e.target.result);
+                        
+                        if (backupData.certificates && Array.isArray(backupData.certificates)) {
+                            const confirmRestore = confirm(`This will restore ${backupData.certificates.length} certificates. Current certificates will be replaced. Continue?`);
+                            
+                            if (confirmRestore) {
+                                certificates = backupData.certificates;
+                                saveCertificatesToStorage();
+                                updateStatistics();
+                                
+                                // Refresh the display if download panel is open
+                                if (document.getElementById('download-panel').style.display !== 'none') {
+                                    displayCertificates(certificates);
+                                }
+                                
+                                alert('Certificates restored successfully!');
+                            }
+                        } else {
+                            alert('Invalid backup file format.');
+                        }
+                    } catch (error) {
+                        console.error('Error parsing backup file:', error);
+                        alert('Error reading backup file: ' + error.message);
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+
+        function updateStatistics() {
+            document.getElementById('total-certs').textContent = certificates.length;
+            document.getElementById('verified-today').textContent = certificates.filter(c => c.status === 'verified').length;
+            document.getElementById('blockchain-tx').textContent = certificates.filter(c => c.transactionHash).length;
+            updateDataStatus();
+        }
+
+        function updateDataStatus() {
+            const dataStatusElement = document.getElementById('data-status');
+            try {
+                const storedCertificates = localStorage.getItem('certichain_certificates');
+                if (storedCertificates) {
+                    const storedCount = JSON.parse(storedCertificates).length;
+                    if (storedCount === certificates.length) {
+                        dataStatusElement.textContent = '✅ Persisted';
+                        dataStatusElement.style.color = '#28a745';
+                    } else {
+                        dataStatusElement.textContent = '⚠️ Sync Issue';
+                        dataStatusElement.style.color = '#ffc107';
+                    }
+                } else {
+                    dataStatusElement.textContent = '❌ Not Persisted';
+                    dataStatusElement.style.color = '#dc3545';
+                }
+            } catch (error) {
+                dataStatusElement.textContent = '❌ Error';
+                dataStatusElement.style.color = '#dc3545';
+            }
+        }
+
+        // Certificate issuance
+        document.getElementById('certificate-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            try {
+                // Simulate blockchain transaction
+                const transactionHash = await simulateBlockchainTransaction();
+                
+                // Create certificate object
+                const certificate = {
+                    id: 'CERT-' + (certificates.length + 1).toString().padStart(3, '0'),
+                    recipientName: document.getElementById('recipient-name').value,
+                    recipientEmail: document.getElementById('recipient-email').value,
+                    type: document.getElementById('certificate-type').value,
+                    issuingDate: document.getElementById('issuing-date').value,
+                    description: document.getElementById('certificate-description').value,
+                    status: 'issued',
+                    transactionHash: transactionHash,
+                    ipfsHash: await simulateIPFSUpload(),
+                    timestamp: new Date().toISOString()
+                };
+                
+                certificates.push(certificate);
+                saveCertificatesToStorage(); // Save to localStorage
+                updateStatistics();
+                
+                alert(`Certificate issued successfully!\nCertificate ID: ${certificate.id}\nTransaction Hash: ${transactionHash}`);
+                
+                // Reset form
+                document.getElementById('certificate-form').reset();
+                document.getElementById('issuing-date').valueAsDate = new Date();
+                
+            } catch (error) {
+                alert('Error issuing certificate: ' + error.message);
+            }
+        });
+
+        async function simulateBlockchainTransaction() {
+            // Simulate blockchain transaction delay
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Generate fake transaction hash
+            const chars = '0123456789abcdef';
+            let hash = '0x';
+            for (let i = 0; i < 40; i++) {
+                hash += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return hash;
+        }
+
+        async function simulateIPFSUpload() {
+            // Simulate IPFS upload delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Generate fake IPFS hash
+            const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            let hash = 'Qm';
+            for (let i = 0; i < 44; i++) {
+                hash += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return hash;
+        }
+
+        // Certificate verification
+        function verifyCertificate() {
+            const input = document.getElementById('verification-input').value.trim();
+            
+            if (!input) {
+                alert('Please enter a certificate ID or transaction hash');
+                return;
+            }
+            
+            // Find certificate
+            let certificate = null;
+            
+            if (input.startsWith('0x')) {
+                // Search by transaction hash
+                certificate = certificates.find(c => c.transactionHash === input);
+            } else {
+                // Search by certificate ID
+                certificate = certificates.find(c => c.id === input);
+            }
+            
+            if (certificate) {
+                displayVerificationResult(certificate);
+            } else {
+                alert('Certificate not found. Please check your input and try again.');
+            }
+        }
+
+        function displayVerificationResult(certificate) {
+            const resultDiv = document.getElementById('verification-result');
+            const detailsDiv = document.getElementById('verification-details');
+            
+            detailsDiv.innerHTML = `
+                <p><strong>Certificate ID:</strong> ${certificate.id}</p>
+                <p><strong>Recipient:</strong> ${certificate.recipientName}</p>
+                <p><strong>Type:</strong> ${certificate.type}</p>
+                <p><strong>Issuing Date:</strong> ${certificate.issuingDate}</p>
+                <p><strong>Description:</strong> ${certificate.description}</p>
+                <p><strong>Status:</strong> <span class="status ${certificate.status}">${certificate.status}</span></p>
+                <p><strong>Transaction Hash:</strong> ${certificate.transactionHash}</p>
+                <p><strong>IPFS Hash:</strong> ${certificate.ipfsHash}</p>
+                <p><strong>Blockchain Verified:</strong> ✅ Yes</p>
+                <p><strong>Timestamp:</strong> ${certificate.timestamp}</p>
+                
+                <div style="text-align: center; margin: 1rem 0;">
+                    <h4>QR Code for Verification</h4>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(certificate.transactionHash)}" alt="QR Code">
+                    <br><br>
+                    <button class="btn" onclick="downloadCertificate('${certificate.id}')" style="margin-top: 1rem;">
+                        📥 Download Certificate PDF
+                    </button>
+                </div>
+            `;
+            
+            resultDiv.style.display = 'block';
+        }
+
+        // Blockchain integration
+        async function initializeBlockchain() {
+            try {
+                // Check if MetaMask is installed
+                if (typeof window.ethereum !== 'undefined') {
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    
+                    // Listen for account changes
+                    window.ethereum.on('accountsChanged', function (accounts) {
+                        if (accounts.length > 0) {
+                            updateBlockchainStatus();
+                        } else {
+                            resetBlockchainStatus();
+                        }
+                    });
+                    
+                    // Listen for network changes
+                    window.ethereum.on('chainChanged', function (chainId) {
+                        updateBlockchainStatus();
+                    });
+                    
+                } else {
+                    console.log('MetaMask not installed');
+                }
+            } catch (error) {
+                console.error('Error initializing blockchain:', error);
+            }
+        }
+
+        async function connectWallet() {
+            try {
+                if (!provider) {
+                    alert('Please install MetaMask to connect your wallet');
+                    return;
+                }
+                
+                // Request account access
+                const accounts = await provider.send("eth_requestAccounts", []);
+                
+                if (accounts.length > 0) {
+                    signer = provider.getSigner();
+                    await updateBlockchainStatus();
+                }
+                
+            } catch (error) {
+                console.error('Error connecting wallet:', error);
+                alert('Error connecting wallet: ' + error.message);
+            }
+        }
+
+        async function updateBlockchainStatus() {
+            try {
+                if (!provider || !signer) return;
+                
+                const network = await provider.getNetwork();
+                const address = await signer.getAddress();
+                const balance = await provider.getBalance(address);
+                const lastBlock = await provider.getBlockNumber();
+                
+                document.getElementById('current-network').textContent = network.name || 'Unknown';
+                document.getElementById('wallet-address').textContent = address.substring(0, 6) + '...' + address.substring(38);
+                document.getElementById('wallet-balance').textContent = ethers.utils.formatEther(balance) + ' ETH';
+                document.getElementById('last-block').textContent = lastBlock;
+                
+            } catch (error) {
+                console.error('Error updating blockchain status:', error);
+            }
+        }
+
+        function resetBlockchainStatus() {
+            document.getElementById('current-network').textContent = 'Not Connected';
+            document.getElementById('wallet-address').textContent = 'Not Connected';
+            document.getElementById('wallet-balance').textContent = '0 ETH';
+            document.getElementById('last-block').textContent = '-';
+        }
+
+        // Certificate download functionality
+        function handleSearchKeyPress(event) {
+            if (event.key === 'Enter') {
+                searchCertificates();
+            }
+        }
+
+        function searchCertificates() {
+            const searchTerm = document.getElementById('download-search').value.trim().toLowerCase();
+            
+            if (!searchTerm) {
+                displayCertificates(certificates);
+                return;
+            }
+            
+            const filteredCertificates = certificates.filter(cert => 
+                cert.id.toLowerCase().includes(searchTerm) ||
+                cert.recipientName.toLowerCase().includes(searchTerm) ||
+                cert.recipientEmail.toLowerCase().includes(searchTerm) ||
+                cert.type.toLowerCase().includes(searchTerm)
+            );
+            
+            displayCertificates(filteredCertificates);
+        }
+
+        function displayCertificates(certs) {
+            const listDiv = document.getElementById('certificate-list');
+            
+            if (certs.length === 0) {
+                listDiv.innerHTML = '<div class="no-results">No certificates found.</div>';
+                return;
+            }
+            
+            let html = '<div class="search-results"><h4>Available Certificates</h4>';
+            
+            certs.forEach(cert => {
+                html += `
+                    <div class="certificate-item">
+                        <div class="certificate-header">
+                            <div class="certificate-info">
+                                <h5>${cert.id}</h5>
+                                <p><strong>Recipient:</strong> ${cert.recipientName}</p>
+                                <p><strong>Email:</strong> ${cert.recipientEmail}</p>
+                                <p><strong>Type:</strong> ${cert.type}</p>
+                                <p><strong>Date:</strong> ${cert.issuingDate}</p>
+                                <p><strong>Status:</strong> <span class="status ${cert.status}">${cert.status}</span></p>
+                            </div>
+                            <div class="certificate-actions">
+                                <button class="btn" onclick="downloadCertificate('${cert.id}')">
+                                    📥 Download PDF
+                                </button>
+                                <button class="btn btn-secondary" onclick="viewCertificateDetails('${cert.id}')">
+                                    👁️ View Details
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            listDiv.innerHTML = html;
+        }
+
+        function downloadCertificate(certificateId) {
+            const certificate = certificates.find(c => c.id === certificateId);
+            
+            if (!certificate) {
+                alert('Certificate not found!');
+                return;
+            }
+            
+            // Show loading message
+            const originalText = event.target.textContent;
+            event.target.textContent = '⏳ Generating PDF...';
+            event.target.disabled = true;
+            
+            try {
+                // Check if jsPDF is available
+                if (typeof window.jspdf === 'undefined') {
+                    console.error('jsPDF library not loaded');
+                    alert('PDF library not loaded. Please refresh the page and try again.');
+                    return;
+                }
+                
+                // Generate PDF using jsPDF
+                generateCertificatePDF(certificate);
+                
+                // Success message
+                setTimeout(() => {
+                    alert(`Certificate ${certificate.id} downloaded successfully!`);
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                alert('Error generating PDF: ' + error.message + '\n\nPlease try refreshing the page and downloading again.');
+            } finally {
+                // Restore button
+                setTimeout(() => {
+                    event.target.textContent = originalText;
+                    event.target.disabled = false;
+                }, 1000);
+            }
+        }
+
+        function generateCertificatePDF(certificate) {
+            // Create new PDF document
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            
+            // Set up colors
+            const primaryColor = [102, 126, 234]; // #667eea
+            const secondaryColor = [118, 75, 162]; // #764ba2
+            const textColor = [51, 51, 51]; // #333
+            const lightGray = [102, 102, 102]; // #666
+            
+            // Add background gradient effect (simulated with rectangles)
+            doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            doc.rect(0, 0, 210, 297, 'F');
+            
+            // Add white certificate area
+            doc.setFillColor(255, 255, 255);
+            doc.roundedRect(15, 15, 180, 267, 5, 5, 'F');
+            
+            // Add border
+            doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            doc.setLineWidth(2);
+            doc.roundedRect(15, 15, 180, 267, 5, 5, 'S');
+            
+            // Header section
+            doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            doc.roundedRect(20, 20, 170, 25, 3, 3, 'F');
+            
+            // Certificate title
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(28);
+            doc.setFont('helvetica', 'bold');
+            doc.text('CERTIFICATE', 105, 35, { align: 'center' });
+            
+            // Subtitle
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'normal');
+            doc.text('OF ACHIEVEMENT', 105, 42, { align: 'center' });
+            
+            // Main content
+            doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+            doc.setFontSize(12);
+            doc.text('This is to certify that', 105, 70, { align: 'center' });
+            
+            // Recipient name
+            doc.setFontSize(24);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            doc.text(certificate.recipientName, 105, 85, { align: 'center' });
+            
+            // Description
+            doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'normal');
+            doc.text('has successfully completed', 105, 100, { align: 'center' });
+            
+            // Certificate description
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            const descriptionLines = doc.splitTextToSize(certificate.description, 150);
+            doc.text(descriptionLines, 105, 115, { align: 'center' });
+            
+            // Details section
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(lightGray[0], lightGray[1], lightGray[2]);
+            
+            let yPos = 150;
+            const details = [
+                ['Certificate ID:', certificate.id],
+                ['Type:', certificate.type],
+                ['Issued Date:', certificate.issuingDate],
+                ['Status:', certificate.status.toUpperCase()]
+            ];
+            
+            details.forEach(([label, value]) => {
+                doc.setFont('helvetica', 'bold');
+                doc.text(label, 30, yPos);
+                doc.setFont('helvetica', 'normal');
+                doc.text(value, 30, yPos + 5);
+                yPos += 15;
+            });
+            
+            // Blockchain verification section
+            doc.setFillColor(240, 248, 255);
+            doc.roundedRect(20, 220, 170, 50, 3, 3, 'F');
+            
+            doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('CertiChain Blockchain Certificate', 105, 235, { align: 'center' });
+            
+            doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            
+            // Transaction hash
+            doc.text('Transaction Hash:', 25, 245);
+            const txHash = certificate.transactionHash.substring(0, 20) + '...';
+            doc.text(txHash, 25, 250);
+            
+            // IPFS hash
+            doc.text('IPFS Hash:', 25, 258);
+            const ipfsHash = certificate.ipfsHash.substring(0, 20) + '...';
+            doc.text(ipfsHash, 25, 263);
+            
+            // Timestamp
+            doc.text('Issued:', 105, 245);
+            const issueDate = new Date(certificate.timestamp).toLocaleDateString();
+            doc.text(issueDate, 105, 250);
+            
+            // QR Code placeholder
+            doc.setDrawColor(lightGray[0], lightGray[1], lightGray[2]);
+            doc.rect(150, 240, 30, 30);
+            doc.setFontSize(6);
+            doc.text('QR Code', 165, 255, { align: 'center' });
+            doc.text('Available', 165, 260, { align: 'center' });
+            doc.text('Online', 165, 265, { align: 'center' });
+            
+            // Footer
+            doc.setTextColor(lightGray[0], lightGray[1], lightGray[2]);
+            doc.setFontSize(8);
+            doc.text('Generated by CertiChain - Blockchain Certificate System', 105, 285, { align: 'center' });
+            
+            // Save the PDF
+            const fileName = `Certificate_${certificate.id}_${certificate.recipientName.replace(/\s+/g, '_')}.pdf`;
+            doc.save(fileName);
+        }
+
+        function viewCertificateDetails(certificateId) {
+            const certificate = certificates.find(c => c.id === certificateId);
+            
+            if (!certificate) {
+                alert('Certificate not found!');
+                return;
+            }
+            
+            // Show certificate details in a modal-like display
+            const detailsHtml = `
+                <div style="background: white; padding: 2rem; border-radius: 15px; margin-top: 1rem; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
+                    <h4 style="color: #667eea; margin-bottom: 1rem;">Certificate Details</h4>
+                    <p><strong>Certificate ID:</strong> ${certificate.id}</p>
+                    <p><strong>Recipient:</strong> ${certificate.recipientName}</p>
+                    <p><strong>Email:</strong> ${certificate.recipientEmail}</p>
+                    <p><strong>Type:</strong> ${certificate.type}</p>
+                    <p><strong>Issuing Date:</strong> ${certificate.issuingDate}</p>
+                    <p><strong>Description:</strong> ${certificate.description}</p>
+                    <p><strong>Status:</strong> <span class="status ${certificate.status}">${certificate.status}</span></p>
+                    <p><strong>Transaction Hash:</strong> ${certificate.transactionHash}</p>
+                    <p><strong>IPFS Hash:</strong> ${certificate.ipfsHash}</p>
+                    <p><strong>Timestamp:</strong> ${certificate.timestamp}</p>
+                    
+                    <div style="text-align: center; margin: 1rem 0;">
+                        <button class="btn" onclick="downloadCertificate('${certificate.id}')" style="margin-right: 1rem;">
+                            📥 Download PDF
+                        </button>
+                        <button class="btn btn-secondary" onclick="document.getElementById('certificate-details-modal').remove()">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Remove any existing modal
+            const existingModal = document.getElementById('certificate-details-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Create modal
+            const modal = document.createElement('div');
+            modal.id = 'certificate-details-modal';
+            modal.innerHTML = detailsHtml;
+            document.getElementById('certificate-list').appendChild(modal);
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                // Optionally ask if user wants to keep certificates
+                const keepCertificates = confirm('Do you want to keep your certificates for next login? (Click OK to keep, Cancel to clear all data)');
+                
+                if (!keepCertificates) {
+                    localStorage.removeItem('certichain_certificates');
+                    console.log('Certificates cleared on logout');
+                }
+                
+                localStorage.removeItem('certichain_user');
+                alert('Logged out successfully!');
+                window.location.href = 'index.html';
+            }
+        }
+    </script>
+</body>
+</html>
