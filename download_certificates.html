@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Certificates | CertiChain</title>
+    <!-- Font Import -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Premium Cert Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Great+Vibes&family=Lato:wght@300;400;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Scripts for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- QR Code Generator -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --accent-color: #764ba2;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .navbar {
+            background: #4A47A3;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .nav-links a:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 3rem auto;
+            padding: 0 1rem;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .page-header h1 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .download-grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .cert-row {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .cert-row:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .cert-info {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .cert-icon {
+            font-size: 2rem;
+            background: #e6fffa;
+            color: #38b2ac;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cert-text h3 {
+            margin: 0 0 5px 0;
+            color: #2d3748;
+        }
+
+        .cert-text p {
+            margin: 0;
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        .cert-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, #48bb78 0%, #38b2ac 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: opacity 0.2s;
+        }
+
+        .btn-download:hover {
+            opacity: 0.9;
+        }
+
+        .no-certs {
+            text-align: center;
+            padding: 4rem;
+            color: #718096;
+        }
+
+        /* --- Realistic Certificate Styles (Hidden for Generation) --- */
+        #certificate-template-container {
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+            /* Visible for html2canvas but offscreen */
+        }
+
+        .paper-certificate {
+            width: 1123px;
+            /* A4 Landscape width approx at 96dpi */
+            height: 794px;
+            /* A4 Landscape height */
+            background: #fff;
+            position: relative;
+            padding: 40px;
+            color: #1e293b;
+            font-family: 'Playfair Display', serif;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        /* Ornamental Border */
+        .certificate-border {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+            border: 3px solid #b45309;
+            /* Bronze/Gold */
+            outline: 2px solid #1e293b;
+            outline-offset: 6px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .certificate-border::before {
+            content: '';
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            right: 6px;
+            bottom: 6px;
+            border: 1px solid #b45309;
+        }
+
+        /* Watermark Background */
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.04;
+            font-size: 500px;
+            pointer-events: none;
+            z-index: 0;
+            font-family: 'Cinzel', serif;
+            color: #000;
+            font-weight: bold;
+        }
+
+        /* Content Layer */
+        .certificate-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px;
+            height: 100%;
+        }
+
+        .certificate-title {
+            font-family: 'Cinzel', serif;
+            font-size: 3.5rem;
+            color: #1e293b;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            margin-bottom: 5px;
+            font-weight: 700;
+            border-bottom: 3px solid #b45309;
+            display: inline-block;
+            padding-bottom: 15px;
+            margin-top: 20px;
+        }
+
+        .certificate-subtitle {
+            font-size: 1.2rem;
+            font-style: italic;
+            color: #475569;
+            margin-top: 10px;
+            font-family: 'Lato', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .recipient-intro {
+            font-family: 'Lato', sans-serif;
+            font-size: 1.2rem;
+            color: #64748b;
+            margin-top: 40px;
+        }
+
+        .recipient-name {
+            font-family: 'Great Vibes', cursive;
+            font-size: 5rem;
+            color: #b45309;
+            margin: 10px 0;
+            text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.1);
+            line-height: 1.2;
+            padding: 0 20px;
+        }
+
+        .certificate-body {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            line-height: 1.8;
+            color: #334155;
+            max-width: 85%;
+            margin: 0 auto;
+        }
+
+        .course-highlight {
+            font-weight: bold;
+            color: #1e293b;
+            font-size: 1.8rem;
+            display: block;
+            margin-top: 10px;
+        }
+
+        /* Footer Section */
+        .certificate-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: auto;
+            border-top: 2px solid #e2e8f0;
+            padding-top: 30px;
+            margin-bottom: 20px;
+        }
+
+        .footer-column {
+            flex: 1;
+            text-align: center;
+        }
+
+        .signature-line {
+            width: 250px;
+            border-bottom: 2px solid #1e293b;
+            margin: 0 auto 10px auto;
+            height: 60px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .signature-img {
+            font-family: 'Great Vibes', cursive;
+            font-size: 2rem;
+            color: #1e293b;
+            padding-bottom: 5px;
+        }
+
+        .signature-label {
+            font-family: 'Lato', sans-serif;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+            color: #64748b;
+        }
+
+        .qr-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cert-id-text {
+            font-family: 'monospace';
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="logo">CertiChain</div>
+            <div class="nav-links">
+                <a href="student_dashboard.html">Dashboard</a>
+                <a href="achievements.html">Achievements</a>
+                <a href="careeropportunities.html">Career</a>
+                <a href="profile.html">Profile</a>
+            </div>
+            <div class="user-info" style="color: white; font-weight: 500;">
+                <span id="nav-user-name">Student</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>My Certificates</h1>
+            <p>Access and download your verified credentials.</p>
+        </div>
+
+        <!-- Custom Generation Section -->
+        <div
+            style="background: white; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <h2 style="color: #2d3748; margin-bottom: 1rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">
+                ✍️ Self-Service Generator
+            </h2>
+            <p style="color: #718096; margin-bottom: 1.5rem;">
+                Need a specific certificate? Enter details manually to generate an official-looking PDF instantly.
+            </p>
+
+            <div
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="display: block; color: #4a5568; font-weight: 500; margin-bottom: 5px;">Recipient
+                        Name</label>
+                    <input type="text" id="custom-name" placeholder="e.g. John Doe"
+                        style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px;">
+                </div>
+                <div>
+                    <label style="display: block; color: #4a5568; font-weight: 500; margin-bottom: 5px;">Course /
+                        Achievement</label>
+                    <input type="text" id="custom-course" placeholder="e.g. Advanced Security"
+                        style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px;">
+                </div>
+                <div>
+                    <label style="display: block; color: #4a5568; font-weight: 500; margin-bottom: 5px;">Issuing
+                        Date</label>
+                    <input type="date" id="custom-date"
+                        style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px;">
+                </div>
+                <div>
+                    <label style="display: block; color: #4a5568; font-weight: 500; margin-bottom: 5px;">Certificate
+                        ID</label>
+                    <input type="text" id="custom-id" placeholder="e.g. CERT-12345"
+                        style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px;">
+                </div>
+            </div>
+
+            <button onclick="generateCustomPDF()"
+                style="background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s;">
+                ✨ Generate Custom Certificate
+            </button>
+        </div>
+
+        <div id="cert-list" class="download-grid">
+            <!-- Certs injected here -->
+        </div>
+    </div>
+
+    <!-- Realistic Certificate Template (Hidden Off-screen) -->
+    <div id="certificate-template-container">
+        <div id="real-certificate" class="paper-certificate">
+            <div class="certificate-border"></div>
+            <div class="watermark">⚖</div>
+
+            <div class="certificate-content">
+                <div class="header-group">
+                    <div style="font-size: 3rem; margin-bottom: 0;">🏛</div>
+                    <div class="certificate-title">Certificate of Completion</div>
+                    <div class="certificate-subtitle">CertiChain Blockchain Verification</div>
+                </div>
+
+                <div class="main-body">
+                    <div class="recipient-intro">This is to certify that</div>
+                    <div class="recipient-name" id="cert-name-display">Student Name</div>
+                    <div class="certificate-body">
+                        has successfully completed all requirements for the course
+                        <span class="course-highlight" id="cert-course-display">Blockchain Fundamentals</span>
+                        <div style="margin-top: 15px; font-size: 1.1rem; color: #64748b;">
+                            Issued on <span id="cert-date-display">Jan 01, 2026</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="certificate-footer">
+                    <div class="footer-column">
+                        <div class="signature-line">
+                            <span class="signature-img">Satoashi N.</span>
+                        </div>
+                        <div class="signature-label">Program Director</div>
+                    </div>
+
+                    <div class="footer-column qr-section">
+                        <div id="cert-qr-code"></div>
+                        <div class="cert-id-text">ID: <span id="cert-id-display">12345</span></div>
+                    </div>
+
+                    <div class="footer-column">
+                        <div class="signature-line">
+                            <span class="signature-img">Vitalik B.</span>
+                        </div>
+                        <div class="signature-label">Head of Education</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load User Info
+            const user = JSON.parse(localStorage.getItem('certichain_user') || '{}');
+            if (user.name) document.getElementById('nav-user-name').textContent = user.name;
+
+            loadCertificates();
+        });
+
+        function loadCertificates() {
+            const container = document.getElementById('cert-list');
+            const certs = JSON.parse(localStorage.getItem('certichain_certificates') || '[]');
+
+            if (certs.length === 0) {
+                container.innerHTML = `
+                    <div class="no-certs">
+                        <h3>No certificates found yet 🎓</h3>
+                        <p>Complete courses to earn your first certificate!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = certs.map(cert => `
+                <div class="cert-row">
+                    <div class="cert-info">
+                        <div class="cert-icon">📜</div>
+                        <div class="cert-text">
+                            <h3>${cert.type || 'Certificate of Completion'}</h3>
+                            <p>Issued on ${cert.issuingDate || new Date().toLocaleDateString()}</p>
+                            <span style="font-size:0.8rem; background:#ebf8ff; color:#3182ce; padding:2px 8px; border-radius:4px; margin-top:5px; display:inline-block;">
+                                ID: ${cert.id.substring(0, 15)}...
+                            </span>
+                        </div>
+                    </div>
+                    <div class="cert-actions">
+                        <button class="btn-download" onclick="generateRealisticPDF('${cert.id}')">
+                            Download PDF 📥
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function generateRealisticPDF(certId) {
+            const certs = JSON.parse(localStorage.getItem('certichain_certificates') || '[]');
+            const cert = certs.find(c => c.id === certId);
+            if (!cert) return;
+
+            // 1. Populate Template
+            document.getElementById('cert-name-display').textContent = cert.recipientName || 'Student Name';
+            document.getElementById('cert-course-display').textContent = cert.type || 'Course Name';
+            document.getElementById('cert-date-display').textContent = cert.issuingDate || new Date().toLocaleDateString();
+            document.getElementById('cert-id-display').textContent = cert.id;
+
+            // 2. Generate QR Code
+            const qrContainer = document.getElementById('cert-qr-code');
+            qrContainer.innerHTML = ''; // Clear previous
+            new QRCode(qrContainer, {
+                text: `https://certichain.demo/verify?id=${cert.id}`,
+                width: 80,
+                height: 80,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            // Wait a moment for QR to render and fonts to settle
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // 3. Capture with html2canvas
+            const element = document.getElementById('real-certificate');
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+
+            // 4. Generate PDF
+            const imgData = canvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+
+            // A4 Landscape dimensions in mm
+            const pdf = new jsPDF('l', 'mm', 'a4');
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`${cert.type.replace(/\s+/g, '_')}_Official.pdf`);
+        }
+        async function generateCustomPDF() {
+            const name = document.getElementById('custom-name').value;
+            const course = document.getElementById('custom-course').value;
+            const dateStr = document.getElementById('custom-date').value;
+            const id = document.getElementById('custom-id').value || 'CUSTOM-' + Date.now();
+
+            if (!name || !course) {
+                alert('Please enter at least a Name and Course.');
+                return;
+            }
+
+            // Populate Template
+            document.getElementById('cert-name-display').textContent = name;
+            document.getElementById('cert-course-display').textContent = course;
+
+            const dateObj = dateStr ? new Date(dateStr) : new Date();
+            document.getElementById('cert-date-display').textContent = dateObj.toLocaleDateString();
+
+            document.getElementById('cert-id-display').textContent = id;
+
+            // Generate QR
+            const qrContainer = document.getElementById('cert-qr-code');
+            qrContainer.innerHTML = '';
+            new QRCode(qrContainer, {
+                text: `https://certichain.demo/verify?id=${id}`,
+                width: 80,
+                height: 80,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Capture & Save
+            const element = document.getElementById('real-certificate');
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+            const imgData = canvas.toDataURL('image/png');
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('l', 'mm', 'a4');
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Custom_Certificate_${name.replace(/\s+/g, '_')}.pdf`);
+        }
+    </script>
+</body>
+
+</html>

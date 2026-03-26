@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile | CertiChain</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --accent-color: #764ba2;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: #4A47A3;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .nav-links a:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Responsive Navbar */
+        @media (max-width: 768px) {
+            .navbar-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .nav-links {
+                gap: 10px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        /* Profile Styles */
+        .profile-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            margin-bottom: 2rem;
+        }
+
+        .section-header {
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #edf2f7;
+            padding-bottom: 0.5rem;
+        }
+
+        .section-header h3 {
+            margin: 0;
+            color: #2d3748;
+        }
+
+        .account-field {
+            margin-bottom: 1.2rem;
+        }
+
+        .field-label {
+            font-size: 0.85rem;
+            color: #718096;
+            margin-bottom: 0.3rem;
+            font-weight: 500;
+        }
+
+        .field-value {
+            font-size: 1rem;
+            color: #2d3748;
+            padding: 10px;
+            background: #f7fafc;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .field-value.readonly {
+            background: #edf2f7;
+            color: #718096;
+        }
+
+        input.field-value {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+        }
+
+        .profile-header-compact {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--primary-color);
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="logo">CertiChain</div>
+            <div class="nav-links">
+                <a href="student_dashboard.html">Dashboard</a>
+                <a href="achievements.html">Achievements</a>
+                <a href="careeropportunities.html">Career</a>
+                <a href="#" style="background: rgba(255,255,255,0.2);">Profile</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+            <div class="user-info" style="color: white; font-weight: 500;">
+                <span id="nav-user-name">Student</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h1 style="margin: 0;">My Profile</h1>
+            <button class="btn" onclick="toggleEditMode()" id="edit-btn">Edit Profile ✏️</button>
+        </div>
+
+        <!-- Personal Info -->
+        <div class="profile-card">
+            <div class="section-header">
+                <h3>👤 Personal Information</h3>
+            </div>
+
+            <div class="profile-header-compact">
+                <div style="position: relative; display: inline-block;">
+                    <img src="https://ui-avatars.com/api/?name=Student+User&background=random" alt="Profile Photo"
+                        class="profile-avatar" id="avatar-img">
+                    <button onclick="document.getElementById('photo-input').click()"
+                        style="position: absolute; bottom: 0; right: 0; background: #2d3748; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white;">
+                        📷
+                    </button>
+                    <input type="file" id="photo-input" accept="image/*" style="display: none;"
+                        onchange="handlePhotoUpload(this)">
+                </div>
+                <div>
+                    <h2 id="display-name" style="margin: 0; color: #2d3748;">Student Name</h2>
+                    <p id="display-email" style="margin: 5px 0; color: #718096;">student@example.com</p>
+                </div>
+            </div>
+
+            <form id="profile-form">
+                <div class="account-field">
+                    <div class="field-label">Full Name</div>
+                    <input type="text" class="field-value" id="p-name" disabled>
+                </div>
+                <div class="account-field">
+                    <div class="field-label">Username</div>
+                    <div class="field-value readonly" id="p-username">student_user</div>
+                </div>
+                <div class="account-field">
+                    <div class="field-label">Date of Birth</div>
+                    <input type="date" class="field-value" id="p-dob" disabled>
+                </div>
+                <div class="account-field">
+                    <div class="field-label">Mobile Number</div>
+                    <input type="tel" class="field-value" id="p-mobile" disabled>
+                </div>
+                <div class="account-field">
+                    <div class="field-label">Address</div>
+                    <input type="text" class="field-value" id="p-address" disabled>
+                </div>
+            </form>
+        </div>
+
+        <!-- Education Info -->
+        <div class="profile-card">
+            <div class="section-header">
+                <h3>🎓 Education Details</h3>
+            </div>
+            <div class="account-field">
+                <div class="field-label">Course / Branch</div>
+                <input type="text" class="field-value" id="p-branch" disabled>
+            </div>
+            <div class="account-field">
+                <div class="field-label">Student ID</div>
+                <div class="field-value readonly" id="p-id">12345678</div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 3rem;">
+            <button class="btn btn-secondary" onclick="logout()">Sign Out</button>
+        </div>
+
+    </div>
+
+    <script>
+        let isEditing = false;
+        let currentUser = {};
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProfile();
+        });
+
+        function loadProfile() {
+            const storedUser = localStorage.getItem('certichain_user');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+
+                // Populate fields
+                document.getElementById('nav-user-name').textContent = currentUser.name || 'Student';
+                document.getElementById('display-name').textContent = currentUser.name || 'Student';
+                document.getElementById('display-email').textContent = currentUser.email || '';
+
+                document.getElementById('p-name').value = currentUser.name || '';
+                document.getElementById('p-username').textContent = currentUser.username || currentUser.email?.split('@')[0] || 'user';
+                document.getElementById('p-email').textContent = currentUser.email || ''; // Note: This element ID might need checking if it exists in the form
+                document.getElementById('p-dob').value = currentUser.dob || '';
+                document.getElementById('p-mobile').value = currentUser.mobile || '';
+                document.getElementById('p-address').value = currentUser.address || '';
+
+                document.getElementById('p-branch').value = currentUser.branch || 'Computer Science';
+                document.getElementById('p-id').textContent = currentUser.studentId || 'N/A';
+
+                // Avatar
+                if (currentUser.photo) {
+                    document.getElementById('avatar-img').src = currentUser.photo;
+                } else if (currentUser.name) {
+                    document.getElementById('avatar-img').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`;
+                }
+            }
+        }
+
+        function handlePhotoUpload(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+
+                reader.onload = function (e) {
+                    // Update UI
+                    document.getElementById('avatar-img').src = e.target.result;
+
+                    // Update Data
+                    currentUser.photo = e.target.result;
+                    saveProfileData(); // Auto-save on photo change
+                }
+
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function toggleEditMode() {
+            const inputs = document.querySelectorAll('#profile-form input:not(.readonly), #p-branch');
+            const btn = document.getElementById('edit-btn');
+
+            if (!isEditing) {
+                // Enable editing
+                inputs.forEach(input => {
+                    input.disabled = false;
+                    input.style.borderColor = '#667eea';
+                    input.style.background = 'white';
+                });
+                btn.textContent = 'Save Changes 💾';
+                btn.style.background = 'linear-gradient(135deg, #48bb78 0%, #38b2ac 100%)';
+                isEditing = true;
+            } else {
+                // Save Changes
+                saveProfile();
+
+                // Disable editing
+                inputs.forEach(input => {
+                    input.disabled = true;
+                    input.style.borderColor = '#e2e8f0';
+                    input.style.background = '#f7fafc';
+                });
+                btn.textContent = 'Edit Profile ✏️';
+                btn.removeAttribute('style'); // Reset style
+                isEditing = false;
+            }
+        }
+
+        function saveProfile() {
+            // Update object
+            currentUser.name = document.getElementById('p-name').value;
+            currentUser.dob = document.getElementById('p-dob').value;
+            currentUser.mobile = document.getElementById('p-mobile').value;
+            currentUser.address = document.getElementById('p-address').value;
+            currentUser.branch = document.getElementById('p-branch').value;
+
+            // Save to LocalStorage
+            saveProfileData();
+
+            // Update UI
+            document.getElementById('nav-user-name').textContent = currentUser.name;
+            document.getElementById('display-name').textContent = currentUser.name;
+
+            // Update photo fallback if no custom photo
+            if (!currentUser.photo && currentUser.name) {
+                document.getElementById('avatar-img').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`;
+            }
+
+            alert('Profile updated successfully!');
+        }
+
+        function saveProfileData() {
+            localStorage.setItem('certichain_user', JSON.stringify(currentUser));
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.removeItem('certichain_user');
+                window.location.href = 'index.html';
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CertiChain - Premium Student Dashboard</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0f111a',
+                        cardBg: '#1a1c33',
+                        textAccent: '#a2a1f8',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Vis Network -->
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d0f17; 
+            color: #ffffff;
+            /* Starry overlay placeholder */
+            background-image: radial-gradient(circle at 15% 50%, rgba(124, 58, 237, 0.08), transparent 25%),
+                              radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.08), transparent 25%);
+        }
+        
+        .glass-card {
+            background-color: rgba(26, 28, 51, 0.85); 
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(139, 92, 246, 0.15);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+        }
+        
+        .glass-nav {
+            background: linear-gradient(90deg, #1f1b4a 0%, #111126 100%);
+            border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+        }
+
+        .halo-glow { text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+        
+        .btn-glow {
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);
+            border: 1px solid rgba(167, 139, 250, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .btn-glow:hover {
+            box-shadow: 0 0 25px rgba(124, 58, 237, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .progress-bar-bg { background-color: rgba(255,255,255,0.1); }
+        .progress-bar-fill { background: linear-gradient(90deg, #818cf8, #c084fc); }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f111a; }
+        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
+
+        /* Orbital animation */
+        .orbit { animation: spin 8s linear infinite; }
+        .orbit-reverse { animation: spin 12s linear infinite reverse; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .orbital-center {
+            position: absolute;
+            top: 55%;
+            left: 55%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="overflow-x-hidden relative min-h-screen pb-12 text-[16px]">
+
+    <!-- Orbital Centerpiece -->
+    <div class="orbital-center hidden md:block">
+        <!-- Rings -->
+        <div class="absolute inset-0 border border-purple-500/30 rounded-full orbit p-2">
+            <div class="w-2.5 h-2.5 bg-purple-400 rounded-full shadow-[0_0_10px_#c084fc]"></div>
+        </div>
+        <div class="absolute inset-4 border border-cyan-500/30 rounded-full orbit-reverse p-1">
+            <div class="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee] float-right"></div>
+        </div>
+        <div class="absolute inset-10 border border-indigo-500/40 rounded-full orbit p-1"></div>
+        <!-- Core Glow -->
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-purple-600/40 blur-xl rounded-full"></div>
+    </div>
+
+    <!-- Background Faint Lines -->
+    <div class="fixed left-0 top-1/4 w-full h-[500px] border-y border-white/5 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.02)_0%,transparent_70%)] -z-10 pointer-events-none"></div>
+
+    <!-- Navbar -->
+    <nav class="glass-nav sticky top-0 z-50 text-white shadow-xl">
+        <div class="max-w-[1600px] mx-auto px-6">
+            <div class="flex items-center justify-between h-14">
+                
+                <!-- Logo -->
+                <div class="flex items-center space-x-2 mr-4 cursor-pointer">
+                    <span class="text-[20px]">🔗</span>
+                    <span class="font-bold text-[18px] tracking-wide halo-glow">CertiChain</span>
+                </div>
+
+                <!-- Links -->
+                <div class="hidden lg:flex items-center space-x-6 text-[13px] font-bold tracking-[0.1em] text-gray-300">
+                    <a href="student_dashboard.html" class="text-white hover:text-white transition-colors">DASHBOARD</a>
+                    <a href="achievements.html" class="hover:text-white transition-colors">ACHIEVEMENTS</a>
+                    <a href="careeropportunities.html" class="hover:text-white transition-colors">CAREER</a>
+                    <a href="learning_analytics.html" class="hover:text-white transition-colors">ANALYTICS</a>
+                    <div class="relative flex items-center cursor-pointer hover:text-white transition-colors" onclick="toggleDropdown()">
+                        EXPLORE <span class="ml-[3px] text-[10px]">▼</span>
+                        <div id="explore-dropdown" class="hidden absolute top-6 left-0 mt-2 w-32 bg-[#2c2a5e] rounded border border-purple-500/30 shadow-2xl py-1 z-50">
+                            <a href="dashboard.html" class="block px-3 py-2 text-white hover:bg-purple-600/50 text-[13px]">Certificates</a>
+                            <a href="careeropportunities.html" class="block px-3 py-2 text-white hover:bg-purple-600/50 text-[13px]">Job Board</a>
+                            <a href="leaderboard.html" class="block px-3 py-2 text-white hover:bg-purple-600/50 text-[13px]">Competitions</a>
+                        </div>
+                    </div>
+                    <a href="profile.html" class="hover:text-white transition-colors">PROFILE</a>
+                    <a href="index.html" class="hover:text-white transition-colors">LOGOUT</a>
+                </div>
+
+                <!-- Right Side Profile/Settings -->
+                <div class="flex items-center space-x-4 relative">
+                    <button class="text-gray-400 hover:text-white transition-colors text-[17px]">⚙️</button>
+                    <button class="relative text-orange-400 hover:text-orange-300 transition-colors text-lg">
+                        🔔
+                        <span class="absolute top-0 -right-1 bg-red-500 text-white text-[10px] font-bold px-[4px] py-[1px] rounded-full shadow-sm">2</span>
+                    </button>
+                    <div class="flex flex-col items-center cursor-pointer pl-2">
+                        <div class="w-7 h-7 bg-[#2dd4bf] text-black font-bold text-[14px] flex items-center justify-center rounded-sm shadow-md">SU</div>
+                        <span class="text-[10px] mt-0.5 text-gray-300">Marojuraghavendhar</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Dashboard Area -->
+    <main class="max-w-[1600px] mx-auto px-6 pt-5 relative z-20">
+        
+        <!-- Welcome Greeting -->
+        <div class="mb-5">
+            <h1 class="text-xl font-bold text-white flex items-center">
+                Welcome back, Marojuraghavendhar! <span class="ml-2 text-lg">🔥</span>
+            </h1>
+            <p class="text-gray-400 text-[14px] mt-1">Manage and verify digital certificates using blockchain technology</p>
+        </div>
+
+        <!-- Flex Layout -->
+        <div class="flex flex-col lg:flex-row gap-5">
+            
+            <!-- LEFT COLUMN (Approx 60%) -->
+            <div class="w-full lg:w-[60%] flex flex-col gap-5">
+                
+                <!-- Skill Network -->
+                <div class="glass-card p-4 h-[280px] flex flex-col relative overflow-hidden">
+                    <h2 class="text-[17px] font-semibold text-textAccent mb-1 flex items-center">
+                        <span class="mr-2 text-gray-300 text-lg">🕸️</span> Skill Network
+                    </h2>
+                    <div id="network-container" class="w-full flex-grow rounded border border-white/5 relative z-10"></div>
+                </div>
+
+                <!-- Bottom Left Sub-grid: Career + (Verify & Download) -->
+                <div class="flex flex-col gap-5 h-[280px]">
+                    <!-- Career Opportunities -->
+                    <div class="glass-card p-4 flex-1 relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent"></div>
+                        <h2 class="text-[17px] font-semibold text-textAccent flex items-center relative z-10">
+                            <span class="mr-2 text-gray-300 text-lg">💼</span> Career Opportunities
+                        </h2>
+                        <p class="text-gray-400 text-[14px] mt-1 relative z-10">Discover jobs and internships matched to your verified skills.</p>
+                        
+                        <div class="mt-3 bg-[#111322]/80 border border-white/5 p-2 rounded-lg flex items-center hover:border-indigo-500/30 transition-colors cursor-pointer relative z-10">
+                            <div class="w-7 h-7 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mr-3 text-white text-[13px] font-bold">W3</div>
+                            <h3 class="text-white text-[14px] font-semibold">Web3 Developer - Remote</h3>
+                        </div>
+
+                        <a href="careeropportunities.html" class="text-textAccent text-[14px] font-semibold hover:underline mt-4 inline-block relative z-10">View 15+ Openings →</a>
+                    </div>
+
+                    <!-- Verify & Download (Side by Side) -->
+                    <div class="flex gap-5 flex-1">
+                        <!-- Verify -->
+                        <div class="glass-card p-4 flex-1 flex flex-col justify-between relative overflow-hidden">
+                            <div class="absolute -bottom-8 -right-8 w-24 h-24 bg-blue-500/10 blur-xl rounded-full"></div>
+                            <div class="relative z-10">
+                                <h2 class="text-[17px] font-semibold text-textAccent flex items-center">
+                                    <span class="mr-2 text-lg">🔍</span> Verify Certificate
+                                </h2>
+                                <p class="text-gray-400 text-[12px] mt-1.5 leading-snug">Verify the authenticity of certificates using blockchain records</p>
+                            </div>
+                            <a href="verify.html" class="btn-glow inline-flex text-white text-[14px] px-4 py-1.5 rounded font-medium w-max mt-2 relative z-10">
+                                Verify Now
+                            </a>
+                        </div>
+                        <!-- Download -->
+                        <div class="glass-card p-4 flex-1 flex flex-col justify-between relative overflow-hidden">
+                            <div class="absolute -bottom-8 -right-8 w-24 h-24 bg-purple-500/10 blur-xl rounded-full"></div>
+                            <div class="relative z-10">
+                                <h2 class="text-[17px] font-semibold text-textAccent flex items-center">
+                                    <span class="mr-2 text-lg">📥</span> Download Certificates
+                                </h2>
+                                <p class="text-gray-400 text-[12px] mt-1.5 leading-snug">Download verified certificates as PDF documents</p>
+                            </div>
+                            <a href="download_certificates.html" class="btn-glow inline-flex text-white text-[14px] px-4 py-1.5 rounded font-medium w-max mt-2 relative z-10">
+                                Download
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN (Approx 40%) -->
+            <div class="w-full lg:w-[40%] flex flex-col gap-5">
+                
+                <!-- Achievements -->
+                <div class="glass-card p-4 h-[280px] flex flex-col relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-2xl rounded-full"></div>
+                    <div class="flex justify-between items-center mb-3 relative z-10">
+                        <h2 class="text-[17px] font-semibold text-textAccent flex items-center">
+                            <span class="mr-2 text-lg">🏆</span> Achievements
+                        </h2>
+                        <a href="achievements.html" class="text-textAccent text-[12px] hover:text-white transition-colors">View All →</a>
+                    </div>
+                    <div class="flex-grow flex gap-3 overflow-x-hidden relative z-10">
+                        <!-- Badge 1 -->
+                        <div class="w-1/2 bg-[#131422]/60 border border-white/5 rounded-lg flex flex-col items-center justify-center p-2 hover:bg-[#1a1c33] transition-colors cursor-pointer">
+                            <div class="w-12 h-12 mb-2 relative">
+                                <div class="absolute inset-0 bg-yellow-600/20 blur-md rounded-full"></div>
+                                <div class="relative w-full h-full flex items-center justify-center text-2xl">🛡️</div>
+                            </div>
+                            <span class="text-white text-[13px] font-semibold text-center">Solidity Master <br><span class="text-gray-400 font-normal text-[12px]">(Lvl 3)</span></span>
+                            <div class="w-6 h-0.5 bg-indigo-500 mt-2 rounded-full shadow-[0_0_5px_#6366f1]"></div>
+                        </div>
+                        <!-- Badge 2 -->
+                        <div class="w-1/2 bg-[#131422]/60 border border-white/5 rounded-lg flex flex-col items-center justify-center p-2 hover:bg-[#1a1c33] transition-colors cursor-pointer">
+                            <div class="w-12 h-12 mb-2 relative">
+                                <div class="absolute inset-0 bg-blue-500/20 blur-md rounded-full"></div>
+                                <div class="relative w-full h-full flex items-center justify-center text-2xl">🧊</div>
+                            </div>
+                            <span class="text-white text-[13px] font-semibold text-center">DApp Pioneer<br>&nbsp;</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Learning Analytics -->
+                <div class="glass-card p-4 h-[280px] flex flex-col">
+                    <h2 class="text-[17px] font-semibold text-textAccent mb-3 flex items-center">
+                        <span class="mr-2 text-lg">📈</span> Learning Analytics
+                    </h2>
+                    <div class="h-28 w-full mb-4 relative z-10">
+                        <canvas id="analyticsChart"></canvas>
+                    </div>
+                    
+                    <div class="flex flex-col gap-2.5 relative z-10">
+                        <div>
+                            <div class="flex justify-between text-[12px] mb-1">
+                                <span class="text-gray-300">Course 01 - Activity flow</span>
+                                <span class="text-white font-bold">70%</span>
+                            </div>
+                            <div class="w-full h-1 progress-bar-bg rounded-full overflow-hidden">
+                                <div class="h-full progress-bar-fill rounded-full" style="width: 70%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[12px] mb-1">
+                                <span class="text-gray-300">Course 21 - Activity fill</span>
+                                <span class="text-white font-bold">10%</span>
+                            </div>
+                            <div class="w-full h-1 progress-bar-bg rounded-full overflow-hidden">
+                                <div class="h-full progress-bar-fill rounded-full" style="width: 10%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Floating Theme Toggle Widget -->
+    <div class="fixed bottom-4 left-4 cursor-pointer hover:scale-110 transition-transform">
+        <div class="w-8 h-8 bg-[#1a1c33] rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.05)] border border-gray-700">
+            <div class="w-3 h-3 rounded-full bg-gradient-to-r from-yellow-300 to-purple-600 border border-transparent shadow shadow-yellow-200"></div>
+        </div>
+    </div>
+
+    <!-- Floating Chatbot Widget -->
+    <div class="fixed bottom-4 right-4 cursor-pointer hover:scale-110 transition-transform z-50">
+        <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(124,58,237,0.5)] border border-purple-400">
+            <span class="text-lg">🤖</span>
+        </div>
+    </div>
+
+    <script>
+        function toggleDropdown() {
+            document.getElementById('explore-dropdown').classList.toggle('hidden');
+        }
+
+        // Initialize Vis-Network
+        function initNetwork() {
+            const container = document.getElementById('network-container');
+            if(container) {
+                const nodes = new vis.DataSet([
+                    { id: 1, label: 'Solidity', color: { background: '#fb923c', border: '#fb923c' }, shape: 'circle', font: { color: '#fff', size:10, face: 'Inter' }, x: -100, y: -20, shadow:{enabled:true, color:'rgba(251,146,60,0.6)', size:15} },
+                    { id: 2, label: 'Blockchain', color: { background: '#a78bfa', border: '#a78bfa' }, shape: 'circle', font: { color: '#fff', size:10, face: 'Inter' }, x: -10, y: 30, shadow:{enabled:true, color:'rgba(167,139,250,0.6)', size:15} },
+                    { id: 3, label: 'Web Dev', color: { background: '#60a5fa', border: '#60a5fa' }, shape: 'circle', font: { color: '#fff', size:10, face: 'Inter' }, x: 50, y: -10, shadow:{enabled:true, color:'rgba(96,165,250,0.6)', size:15} },
+                    { id: 4, label: 'React.js', color: { background: '#2dd4bf', border: '#2dd4bf' }, shape: 'circle', font: { color: '#fff', size:10, face: 'Inter' }, x: 130, y: 0, shadow:{enabled:true, color:'rgba(45,212,191,0.6)', size:15} }
+                ]);
+                const edges = new vis.DataSet([
+                    { from: 1, to: 2, smooth: { type: 'curvedCW', roundness: 0.2 } },
+                    { from: 1, to: 3, smooth: { type: 'curvedCCW', roundness: 0.2 } },
+                    { from: 2, to: 3, smooth: { type: 'curvedCW', roundness: 0.1 } },
+                    { from: 3, to: 4, smooth: { type: 'curvedCCW', roundness: 0.2 } },
+                    { from: 2, to: 4, smooth: { type: 'curvedCW', roundness: 0.3 } }
+                ]);
+                const options = {
+                    nodes: {
+                        margin: 8,
+                        borderWidth: 0
+                    },
+                    edges: {
+                        color: { color: 'rgba(255,255,255,0.1)', highlight: '#818cf8' },
+                        width: 1.5,
+                        selectionWidth: 2
+                    },
+                    physics: false
+                };
+                new vis.Network(container, { nodes, edges }, options);
+            }
+        }
+        
+        initNetwork();
+        
+        // Stabilize visualization on cache-resume (bfcache back navigation)
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                initNetwork();
+            }
+        });
+
+        // Initialize Chart.js
+        const ctx = document.getElementById('analyticsChart').getContext('2d');
+        const gradient1 = ctx.createLinearGradient(0, 0, 0, 100);
+        gradient1.addColorStop(0, 'rgba(45, 212, 191, 0.3)');
+        gradient1.addColorStop(1, 'rgba(45, 212, 191, 0)');
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['1', '2', '3', '4', '5', '6'],
+                datasets: [
+                    {
+                        data: [20, 35, 45, 30, 80, 60],
+                        borderColor: '#2dd4bf',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointRadius: 2,
+                        pointBackgroundColor: '#2dd4bf'
+                    },
+                    {
+                        data: [30, 20, 40, 60, 45, 80],
+                        borderColor: '#a78bfa',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointRadius: 0
+                    },
+                    {
+                        data: [10, 50, 25, 45, 70, 90],
+                        borderColor: '#fbbf24',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false, min: 0, max: 100 }
+                },
+                layout: { padding: 0 }
+            }
+        });
+    </script>
+</body>
+</html>

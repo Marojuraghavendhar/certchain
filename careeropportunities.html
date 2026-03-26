@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Career Opportunities | CertiChain</title>
+
+    <!-- Standard Imports -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.7.0/vanilla-tilt.min.js"></script>
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --accent-color: #764ba2;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: #4A47A3;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .nav-links a:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Container & Cards */
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 2rem;
+        }
+
+        h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+        }
+
+        /* Job Specific Styles */
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .filters input,
+        .filters select {
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            min-width: 200px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .job-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .job-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .job-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+            background: #f7fafc;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+        }
+
+        .job-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .job-company {
+            font-size: 14px;
+            color: #718096;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+
+        .tag {
+            background: #edf2f7;
+            color: #4a5568;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: inline-block;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+
+        .match-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: linear-gradient(135deg, #48bb78 0%, #38b2ac 100%);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(56, 178, 172, 0.4);
+        }
+
+        .apply-btn {
+            width: 100%;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 15px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .apply-btn:hover {
+            background: var(--accent-color);
+        }
+
+        /* Modal */
+        #job-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            width: 600px;
+            max-width: 90%;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .navbar-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .nav-links {
+                gap: 10px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .container {
+                padding: 0 15px;
+            }
+
+            .grid-container {
+                grid-template-columns: 1fr;
+                /* Full width on mobile */
+            }
+
+            h1 {
+                font-size: 2rem !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="logo">CertiChain</div>
+            <div class="nav-links">
+                <a href="student_dashboard.html">Dashboard</a>
+                <a href="studentskillnetwork.html">Skill Network</a>
+                <a href="achievements.html">Achievements</a>
+                <a href="#" style="background: rgba(255,255,255,0.2);">Career</a>
+                <div class="user-info">
+                    <span>Student</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 40px;">
+            <h1 style="font-size: 2.5rem; color: #2d3748; margin-bottom: 10px;">Career Opportunities</h1>
+            <p style="color: #718096; max-width: 600px; margin: 0 auto;">
+                Discover jobs and internships matched to your verified blockchain credentials.
+                Your certificates are your key to these opportunities.
+            </p>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <input type="text" id="search-input" placeholder="Search by title, skill, or company..."
+                onkeyup="filterJobs()">
+            <select onchange="filterJobs()" id="type-filter">
+                <option value="all">All Types</option>
+                <option value="Full-time">Full-time</option>
+                <option value="Contract">Contract</option>
+                <option value="Internship">Internship</option>
+            </select>
+        </div>
+
+        <!-- Job Grid -->
+        <div id="job-grid" class="grid-container">
+            <!-- Jobs injected here -->
+        </div>
+    </div>
+
+    <!-- Job Details Modal -->
+    <div id="job-modal">
+        <div class="modal-content">
+            <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+                <h2 id="m-title" style="margin:0;">Job Title</h2>
+                <button onclick="closeModal()"
+                    style="background:none; border:none; font-size:24px; cursor:pointer;">&times;</button>
+            </div>
+
+            <div style="display:flex; gap:15px; margin-bottom:20px; align-items:center;">
+                <div id="m-icon" style="font-size:40px;">🏢</div>
+                <div>
+                    <div id="m-company" style="font-weight:bold; color:#4a5568;">Company</div>
+                    <div id="m-salary" style="color:#2b6cb0; font-size:14px; font-weight:600;">$100k</div>
+                </div>
+            </div>
+
+            <p id="m-desc" style="line-height:1.6; color:#4a5568; margin-bottom:20px;">Description...</p>
+
+            <div style="background:#f7fafc; padding:15px; border-radius:8px; margin-bottom:20px;">
+                <div
+                    style="font-size:12px; font-weight:bold; color:#718096; margin-bottom:5px; text-transform:uppercase;">
+                    Required Skills</div>
+                <div id="m-tags"></div>
+            </div>
+
+            <a id="m-link" href="#" target="_blank"
+                style="display:block; text-align:center; background: #667eea; color:white; padding:12px; border-radius:8px; text-decoration:none; font-weight:bold;">
+                Apply via LinkedIn 🚀
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // --- Data & Logic ---
+
+        // Mock Database of Jobs
+        const allJobs = [
+            {
+                title: 'Blockchain Security Analyst',
+                company: 'DeFi Safe',
+                icon: '🛡️',
+                salary: '$120k - $150k',
+                type: 'Full-time',
+                focus: 'Analyzing smart contacts for vulnerabilities and monitoring on-chain activity.',
+                req: ['security', 'blockchain', 'audit'],
+                description: `Join our security team to protect the next generation of DeFi protocols. You will be responsible for smart contract auditing, threat modeling, and incident response.`,
+                link: "https://www.linkedin.com/jobs/search/?keywords=Blockchain%20Security"
+            },
+            {
+                title: 'Smart Contract Auditor',
+                company: 'ChainGuard',
+                icon: '⛓️',
+                salary: '$130k - $160k',
+                type: 'Contract',
+                focus: 'Finding vulnerabilities in Solidity/Rust code.',
+                req: ['blockchain', 'audit', 'contract'],
+                description: `Secure the decentralized web. You will review smart contract code for vulnerabilities (like reentrancy attacks), optimize gas usage, and ensure the safety of millions in digital assets.`,
+                link: "https://www.linkedin.com/jobs/search/?keywords=Smart%20Contract%20Auditor"
+            },
+            {
+                title: 'Web3 Developer',
+                company: 'Decentralized Apps',
+                icon: '🌐',
+                salary: '$115k - $145k',
+                type: 'Full-time',
+                focus: 'Building dApps with React & Node.js.',
+                req: ['blockchain', 'web', 'react'],
+                description: `Build the frontend and backend of decentralized applications. You will connect traditional web frameworks (React) with blockchain networks using libraries like Ethers.js and Web3.js.`,
+                link: "https://www.linkedin.com/jobs/search/?keywords=Web3%20Developer"
+            },
+            {
+                title: 'Health Informatics Specialist',
+                company: 'MediTech Health',
+                icon: '🧬',
+                salary: '$90k - $120k',
+                type: 'Full-time',
+                focus: 'Analyzing patient data for clinical outcomes.',
+                req: ['health', 'data', 'informatics'],
+                description: `Improve patient care through data. You will analyze clinical datasets to identify trends, optimize hospital workflows, and ensure interoperability of EHR systems.`,
+                link: "https://www.linkedin.com/jobs/search/?keywords=Health%20Informatics"
+            },
+            {
+                title: 'Data Privacy Officer',
+                company: 'HealthSecure',
+                icon: '🔒',
+                salary: '$105k - $135k',
+                type: 'Full-time',
+                focus: 'Ensuring compliance with DPDP / GDPR.',
+                req: ['privacy', 'security', 'compliance'],
+                description: `Guardian of patient privacy. You will oversee data protection strategies, ensure compliance with laws like HIPAA and GDPR, and manage responses to data privacy breaches.`,
+                link: "https://www.linkedin.com/jobs/search/?keywords=Data%20Privacy%20Officer"
+            }
+        ];
+
+        let userCerts = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load User Info
+            const user = JSON.parse(localStorage.getItem('certichain_user') || '{}');
+            if (user.name) document.querySelector('.user-info span').textContent = user.name;
+
+            // Load Certs
+            const stored = localStorage.getItem('certichain_certificates');
+            if (stored) userCerts = JSON.parse(stored);
+
+            renderJobs(allJobs);
+        });
+
+        function renderJobs(jobs) {
+            const container = document.getElementById('job-grid');
+
+            // Calculate Matches
+            const processed = jobs.map(job => {
+                // Simple matching logic
+                const matches = job.req.filter(r =>
+                    userCerts.some(c => (c.type + " " + c.description).toLowerCase().includes(r))
+                );
+                return { ...job, matchCount: matches.length };
+            });
+
+            // Sort: High match -> Low match
+            processed.sort((a, b) => b.matchCount - a.matchCount);
+
+            container.innerHTML = processed.map(job => {
+                const isMatch = job.matchCount > 0;
+
+                return `
+                <div class="job-card">
+                    ${isMatch ? `<div class="match-badge">AI MATCH ✨</div>` : ''}
+                    <div class="job-icon">${job.icon}</div>
+                    <div class="job-title">${job.title}</div>
+                    <div class="job-company">${job.company} • ${job.type}</div>
+                    
+                    <div style="margin-bottom:15px;">
+                        ${job.req.map(r => `<span class="tag">#${r}</span>`).join('')}
+                    </div>
+
+                    <div style="font-size:14px; color:#555; height:40px; overflow:hidden; text-overflow:ellipsis;">
+                        ${job.focus}
+                    </div>
+
+                    <div style="margin-top:15px; font-weight:bold; color:#2d3748;">${job.salary}</div>
+
+                    <button class="apply-btn" onclick="openJobModal('${job.title}')">View Details</button>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function filterJobs() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const type = document.getElementById('type-filter').value;
+
+            const filtered = allJobs.filter(job => {
+                const matchesSearch = job.title.toLowerCase().includes(query) ||
+                    job.company.toLowerCase().includes(query) ||
+                    job.req.some(r => r.includes(query));
+                const matchesType = type === 'all' || job.type === type;
+
+                return matchesSearch && matchesType;
+            });
+
+            renderJobs(filtered);
+        }
+
+        function openJobModal(title) {
+            const job = allJobs.find(j => j.title === title);
+            if (!job) return;
+
+            document.getElementById('m-title').innerText = job.title;
+            document.getElementById('m-company').innerText = job.company;
+            document.getElementById('m-salary').innerText = job.salary;
+            document.getElementById('m-icon').innerText = job.icon;
+            document.getElementById('m-desc').innerText = job.description;
+            document.getElementById('m-link').href = job.link;
+
+            document.getElementById('m-tags').innerHTML = job.req.map(r =>
+                `<span class="tag" style="background:#e2e8f0; border:1px solid #cbd5e0;">#${r}</span>`
+            ).join(' ');
+
+            document.getElementById('job-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('job-modal').style.display = 'none';
+        }
+
+        // Close modal on outside click
+        window.onclick = function (event) {
+            const modal = document.getElementById('job-modal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+
+</html>

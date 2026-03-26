@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CertiChain - Student Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i data-lucide="shield-check" class="h-8 w-8 text-indigo-600 mr-2"></i>
+                    <span class="font-bold text-xl tracking-tight text-slate-900">CertiChain</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm font-medium text-slate-500" id="user-greeting">Welcome, Student</span>
+                    <button onclick="logout()" class="text-sm font-medium text-indigo-600 hover:text-indigo-500 transition-colors">Log Out</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-slate-900">My Certificates</h1>
+            <p class="mt-2 text-sm text-slate-500">View, verify, and share your blockchain-secured academic credentials.</p>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Quick Stats -->
+            <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-slate-500">Total Certificates</p>
+                        <p class="text-3xl font-bold text-slate-900 mt-1">4</p>
+                    </div>
+                    <div class="h-12 w-12 bg-indigo-50 rounded-full flex items-center justify-center">
+                        <i data-lucide="award" class="h-6 w-6 text-indigo-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending Verifications -->
+            <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-slate-500">Shared Links Active</p>
+                        <p class="text-3xl font-bold text-slate-900 mt-1">2</p>
+                    </div>
+                    <div class="h-12 w-12 bg-amber-50 rounded-full flex items-center justify-center">
+                        <i data-lucide="link" class="h-6 w-6 text-amber-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blockchain Status -->
+            <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-slate-500">Network Status</p>
+                        <p class="text-xl font-bold text-green-600 mt-1 flex items-center">
+                            <span class="w-2.5 h-2.5 rounded-full bg-green-500 mr-2 animate-pulse"></span>
+                            Connected
+                        </p>
+                    </div>
+                    <div class="h-12 w-12 bg-green-50 rounded-full flex items-center justify-center">
+                        <i data-lucide="activity" class="h-6 w-6 text-green-600"></i>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Certificates List -->
+        <div class="mt-10 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-6 py-5 border-b border-slate-200 flex justify-between items-center">
+                <h3 class="text-lg font-medium text-slate-900">Recent Credentials</h3>
+                <button class="text-sm bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-md font-medium hover:bg-indigo-100 transition-colors">
+                    Filter
+                </button>
+            </div>
+            <div class="divide-y divide-slate-200">
+                
+                <!-- Sample Certificate Item -->
+                <div class="p-6 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between">
+                    <div class="flex items-start mb-4 sm:mb-0">
+                        <div class="mt-1 h-10 w-10 flex-shrink-0 bg-indigo-100 rounded-lg flex items-center justify-center">
+                            <i data-lucide="file-check-2" class="h-5 w-5 text-indigo-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h4 class="text-base font-semibold text-slate-900">Bachelor of Science in Computer Science</h4>
+                            <p class="text-sm text-slate-500 mt-1">Issued by Tech University • Oct 12, 2025</p>
+                            <div class="mt-2 flex items-center space-x-2">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                    Verified on Blockchain
+                                </span>
+                                <span class="text-xs text-slate-400 font-mono">0x7a...4d3f</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button class="flex items-center text-sm font-medium text-slate-600 bg-white border border-slate-300 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
+                            <i data-lucide="qr-code" class="h-4 w-4 mr-2"></i> QR Code
+                        </button>
+                        <button class="flex items-center text-sm font-medium text-white bg-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                            <i data-lucide="download" class="h-4 w-4 mr-2"></i> Download
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Sample Certificate Item 2 -->
+                <div class="p-6 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between">
+                    <div class="flex items-start mb-4 sm:mb-0">
+                        <div class="mt-1 h-10 w-10 flex-shrink-0 bg-indigo-100 rounded-lg flex items-center justify-center">
+                            <i data-lucide="file-check-2" class="h-5 w-5 text-indigo-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h4 class="text-base font-semibold text-slate-900">Advanced Web Development Bootcamp</h4>
+                            <p class="text-sm text-slate-500 mt-1">Issued by CodeAcademy • Aug 05, 2025</p>
+                            <div class="mt-2 flex items-center space-x-2">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                    Verified on Blockchain
+                                </span>
+                                <span class="text-xs text-slate-400 font-mono">0x1f...8c9a</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button class="flex items-center text-sm font-medium text-slate-600 bg-white border border-slate-300 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
+                            <i data-lucide="qr-code" class="h-4 w-4 mr-2"></i> QR Code
+                        </button>
+                        <button class="flex items-center text-sm font-medium text-white bg-indigo-600 px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                            <i data-lucide="download" class="h-4 w-4 mr-2"></i> Download
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Check for logged in user -> Update UI
+        document.addEventListener("DOMContentLoaded", function () {
+            const user = JSON.parse(localStorage.getItem('certichain_user'));
+            if (user && user.name) {
+                const greeting = document.getElementById('user-greeting');
+                if (greeting) greeting.textContent = "Welcome, " + user.name.split(' ')[0];
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('certichain_user');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

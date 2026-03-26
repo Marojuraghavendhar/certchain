@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CertiChain - Login & Signup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            min-height: 600px;
+        }
+
+        .form-container {
+            flex: 1;
+            padding: 40px;
+            position: relative;
+        }
+
+        .form-container h2 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+
+        .form-group input::placeholder {
+            color: #999;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .form-footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .form-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .welcome-section {
+            flex: 1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .welcome-section h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .welcome-section p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .form-toggle {
+            display: none;
+        }
+
+        .form-toggle:checked ~ .container .login-form {
+            display: none;
+        }
+
+        .form-toggle:checked ~ .container .signup-form {
+            display: block;
+        }
+
+        .signup-form {
+            display: none;
+        }
+
+        .toggle-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+        .password-requirements {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                max-width: 400px;
+            }
+
+            .welcome-section {
+                padding: 30px 20px;
+            }
+
+            .form-container {
+                padding: 30px 20px;
+            }
+
+            .welcome-section h1 {
+                font-size: 24px;
+            }
+
+            .logo {
+                font-size: 36px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            .form-container {
+                padding: 20px 15px;
+            }
+
+            .welcome-section {
+                padding: 20px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <input type="checkbox" id="form-toggle" class="form-toggle">
+    
+    <div class="container">
+        <div class="welcome-section">
+            <div class="logo">🔗</div>
+            <h1>Welcome to CertiChain</h1>
+            <p>Your trusted platform for secure certificate management and verification. Join thousands of users who trust CertiChain for their credential needs.</p>
+            <p>Experience the future of digital certificates with blockchain technology.</p>
+        </div>
+
+        <div class="form-container">
+            <!-- Login Form -->
+            <form class="login-form" id="loginForm">
+                <h2>Welcome Back</h2>
+                <div class="form-group">
+                    <label for="login-email">Email Address</label>
+                    <input type="email" id="login-email" name="email" placeholder="Enter your email" required>
+                    <div class="error-message" id="login-email-error">Please enter a valid email address</div>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" name="password" placeholder="Enter your password" required>
+                    <div class="error-message" id="login-password-error">Password is required</div>
+                </div>
+                <button type="submit" class="btn btn-primary">Sign In</button>
+                <div class="form-footer">
+                    <p>Don't have an account? <a href="#" onclick="toggleForm()">Sign up here</a></p>
+                    <p><a href="#">Forgot your password?</a></p>
+                </div>
+            </form>
+
+            <!-- Signup Form -->
+            <form class="signup-form" id="signupForm">
+                <h2>Create Account</h2>
+                <div class="form-group">
+                    <label for="signup-name">Full Name</label>
+                    <input type="text" id="signup-name" name="name" placeholder="Enter your full name" required>
+                    <div class="error-message" id="signup-name-error">Full name is required</div>
+                </div>
+                <div class="form-group">
+                    <label for="signup-email">Email Address</label>
+                    <input type="email" id="signup-email" name="email" placeholder="Enter your email" required>
+                    <div class="error-message" id="signup-email-error">Please enter a valid email address</div>
+                </div>
+                <div class="form-group">
+                    <label for="signup-password">Password</label>
+                    <input type="password" id="signup-password" name="password" placeholder="Create a password" required>
+                    <div class="password-requirements">
+                        Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character
+                    </div>
+                    <div class="error-message" id="signup-password-error">Password must meet requirements</div>
+                </div>
+                <div class="form-group">
+                    <label for="signup-confirm-password">Confirm Password</label>
+                    <input type="password" id="signup-confirm-password" name="confirm-password" placeholder="Confirm your password" required>
+                    <div class="error-message" id="signup-confirm-password-error">Passwords do not match</div>
+                </div>
+                <button type="submit" class="btn btn-primary">Create Account</button>
+                <div class="form-footer">
+                    <p>Already have an account? <a href="#" onclick="toggleForm()">Sign in here</a></p>
+                </div>
+            </form>
+
+            <button class="toggle-btn" onclick="toggleForm()" id="toggleBtn">Sign Up</button>
+        </div>
+    </div>
+
+    <script>
+        function toggleForm() {
+            const toggle = document.getElementById('form-toggle');
+            const toggleBtn = document.getElementById('toggleBtn');
+            const loginForm = document.querySelector('.login-form');
+            const signupForm = document.querySelector('.signup-form');
+            
+            if (toggle.checked) {
+                toggle.checked = false;
+                toggleBtn.textContent = 'Sign Up';
+                loginForm.style.display = 'block';
+                signupForm.style.display = 'none';
+            } else {
+                toggle.checked = true;
+                toggleBtn.textContent = 'Sign In';
+                loginForm.style.display = 'none';
+                signupForm.style.display = 'block';
+            }
+        }
+
+        // Form validation
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            // Simple validation
+            if (!email || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            // Simulate login and redirect to dashboard
+            alert('Login successful! Welcome to CertiChain.');
+            
+            // Store user session
+            localStorage.setItem('certichain_user', JSON.stringify({
+                email: email,
+                loginTime: new Date().toISOString()
+            }));
+            
+            // Redirect to dashboard
+            window.location.href = 'dashboard.html';
+        });
+
+        document.getElementById('signupForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('signup-confirm-password').value;
+            
+            // Simple validation
+            if (!name || !email || !password || !confirmPassword) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                alert('Passwords do not match');
+                return;
+            }
+            
+            if (password.length < 8) {
+                alert('Password must be at least 8 characters long');
+                return;
+            }
+            
+            // Simulate signup and redirect to dashboard
+            alert('Account created successfully! Welcome to CertiChain.');
+            
+            // Store user session
+            localStorage.setItem('certichain_user', JSON.stringify({
+                name: name,
+                email: email,
+                loginTime: new Date().toISOString()
+            }));
+            
+            // Redirect to dashboard
+            window.location.href = 'dashboard.html';
+        });
+
+        // Real-time validation
+        document.getElementById('signup-password').addEventListener('input', function() {
+            const password = this.value;
+            const error = document.getElementById('signup-password-error');
+            
+            if (password.length < 8) {
+                error.style.display = 'block';
+                error.textContent = 'Password must be at least 8 characters long';
+            } else {
+                error.style.display = 'none';
+            }
+        });
+
+        document.getElementById('signup-confirm-password').addEventListener('input', function() {
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = this.value;
+            const error = document.getElementById('signup-confirm-password-error');
+            
+            if (password !== confirmPassword) {
+                error.style.display = 'block';
+            } else {
+                error.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

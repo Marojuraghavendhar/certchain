@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Impact | CertiChain</title>
+    <!-- ThreeJS & GlobeGL -->
+    <script src="https://unpkg.com/three"></script>
+    <script src="https://unpkg.com/globe.gl"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            overflow: hidden;
+            font-family: 'Space Grotesk', sans-serif;
+            color: white;
+        }
+
+        #globeViz {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            padding: 25px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 350px;
+            pointer-events: none;
+            /* Let clicks pass through to globe */
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin: 0 0 10px 0;
+            background: linear-gradient(90deg, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .stat-val {
+            font-weight: 700;
+            color: #60a5fa;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            background: white;
+            color: black;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: 700;
+            transition: transform 0.2s;
+            pointer-events: auto;
+        }
+
+        .back-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .ticker {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .ticker-content {
+            display: inline-block;
+            animation: ticker 20s linear infinite;
+        }
+
+        .ticker-item {
+            display: inline-block;
+            margin: 0 30px;
+            color: #94a3b8;
+        }
+
+        @keyframes ticker {
+            0% {
+                transform: translateX(100vw);
+            }
+
+            100% {
+                transform: translateX(-100%);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="globeViz"></div>
+
+    <div class="overlay">
+        <h1>Global Alumni Network</h1>
+        <p style="color: #cbd5e1; margin-bottom: 20px; line-height: 1.5;">
+            Visualizing real-time verified credentials issued on the CertiChain blockchain across the world.
+        </p>
+
+        <div class="stat-row">
+            <span>Countries</span>
+            <span class="stat-val">42</span>
+        </div>
+        <div class="stat-row">
+            <span>Certificates</span>
+            <span class="stat-val">14,203</span>
+        </div>
+        <div class="stat-row">
+            <span>Nodes Online</span>
+            <span class="stat-val">850</span>
+        </div>
+    </div>
+
+    <a href="student_dashboard.html" class="back-btn">Exit Map</a>
+
+    <div class="ticker">
+        <div class="ticker-content" id="live-feed">
+            <!-- Injected -->
+        </div>
+    </div>
+
+    <script>
+        // --- Data ---
+        // Mock locations (approx lat/lng of major tech hubs)
+        const places = [
+            { name: "San Francisco", lat: 37.77, lng: -122.41, size: 0.8 },
+            { name: "New York", lat: 40.71, lng: -74.00, size: 0.7 },
+            { name: "London", lat: 51.50, lng: -0.12, size: 0.6 },
+            { name: "Berlin", lat: 52.52, lng: 13.40, size: 0.5 },
+            { name: "Bangalore", lat: 12.97, lng: 77.59, size: 1.0 },
+            { name: "Singapore", lat: 1.35, lng: 103.81, size: 0.7 },
+            { name: "Tokyo", lat: 35.67, lng: 139.65, size: 0.8 },
+            { name: "Sydney", lat: -33.86, lng: 151.20, size: 0.5 },
+            { name: "São Paulo", lat: -23.55, lng: -46.63, size: 0.6 },
+            { name: "Lagos", lat: 6.52, lng: 3.37, size: 0.5 }
+        ];
+
+        // --- Globe Setup ---
+        const world = Globe()
+            (document.getElementById('globeViz'))
+            .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
+            .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
+            .pointsData(places)
+            .pointAltitude(d => d.size * 0.1)
+            .pointColor(() => '#60a5fa')
+            .pointRadius(0.5)
+            .pointsMerge(true)
+            .ringsData(places)
+            .ringColor(() => '#c084fc')
+            .ringMaxRadius(d => d.size * 5)
+            .ringPropagationSpeed(2)
+            .ringRepeatPeriod(800);
+
+        // Auto-rotate
+        world.controls().autoRotate = true;
+        world.controls().autoRotateSpeed = 0.8;
+
+        // --- Live Ticker Logic ---
+        const feed = document.getElementById('live-feed');
+        const tasks = ["React Certificate issued in Bangalore", "Cybersecurity verified in London", "Blockchain Master in SF", "Python Basic in Lagos", "Node.js Expert in Tokyo"];
+
+        let feedHtml = '';
+        // Repeat strictly for visual length
+        for (let i = 0; i < 10; i++) {
+            feedHtml += tasks.map(t => `<span class="ticker-item">⚡ ${t}</span>`).join('');
+        }
+        feed.innerHTML = feedHtml;
+
+        // Resize handler
+        window.addEventListener('resize', () => {
+            world.width(window.innerWidth);
+            world.height(window.innerHeight);
+        });
+
+    </script>
+</body>
+
+</html>

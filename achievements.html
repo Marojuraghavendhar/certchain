@@ -1,0 +1,4093 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com https://ui-avatars.com https://via.placeholder.com; img-src 'self' https://ui-avatars.com https://via.placeholder.com data: blob:;">
+    <title>CertiChain Dashboard</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <!-- Font Import -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.7.0/vanilla-tilt.min.js"></script>
+    <script>
+        // Check for logged in user -> Update UI
+        document.addEventListener("DOMContentLoaded", function () {
+            const user = JSON.parse(localStorage.getItem('certichain_user'));
+            if (user && user.name) {
+                // Update Navbar
+                const navName = document.querySelector('.user-info span');
+                if (navName) navName.textContent = user.name;
+
+                // Update Profile Greeting
+                const greeting = document.querySelector('#dashboard-welcome-name');
+                if (greeting) greeting.textContent = user.name.split(' ')[0];
+
+                // Update Resume Modal Input
+                const resumeInput = document.getElementById('resume-name');
+                if (resumeInput) resumeInput.value = user.name;
+
+                // Update Email/ID if available
+                if (user.email) document.getElementById('profile-email').textContent = user.email;
+                if (user.studentId) document.getElementById('profile-id').textContent = user.studentId;
+            }
+
+            // 🚀 Phase 12: Animations Trigger
+
+            // 1. Preloader Fade Out
+            setTimeout(() => {
+                const preloader = document.getElementById('preloader');
+                if (preloader) {
+                    preloader.style.animation = "fadeOut 0.5s forwards";
+                    setTimeout(() => preloader.style.display = "none", 500);
+
+                    // 2. Trigger Staggered Entrance AFTER preloader
+                    triggerDashboardEntrance();
+                }
+            }, 1200); // 1.2s fake load time
+
+            // 3. Typing Effect Utility
+            function typeWriter(elementId, text, speed = 50) {
+                const el = document.getElementById(elementId);
+                if (!el) return;
+                el.textContent = "";
+                el.classList.add("typing-cursor");
+
+                let i = 0;
+                function type() {
+                    if (i < text.length) {
+                        el.textContent += text.charAt(i);
+                        i++;
+                        setTimeout(type, speed);
+                    } else {
+                        el.classList.remove("typing-cursor");
+                    }
+                }
+                type();
+            }
+
+            // 4. Stagger Function
+            function triggerDashboardEntrance() {
+                const cards = document.querySelectorAll('.card');
+                cards.forEach((card, index) => {
+                    card.classList.add('animate-fade-up');
+                    card.style.animation = `fadeUp 0.6s ease-out forwards ${index * 0.1}s`;
+                });
+
+                // Type the welcome message
+                const welcomeName = document.querySelector('#dashboard-welcome-name');
+                const nameText = welcomeName ? welcomeName.textContent : "Student";
+                // Only type the name part to preserve the rest of the fixed header structure if needed, 
+                // but here we are typing into the span.
+                if (welcomeName) typeWriter('dashboard-welcome-name', nameText, 100);
+            }
+        });
+    </script>
+    <!-- CertiBot Widget -->
+    <div id="certibot-btn" onclick="toggleChat()">🤖</div>
+    <div id="certibot-widget">
+        <div class="certibot-header">
+            <span>CertiBot Assistant</span>
+            <span style="cursor: pointer;" onclick="toggleChat()">✖</span>
+        </div>
+        <div class="certibot-messages" id="certibot-messages"></div>
+        <div class="certibot-input-area">
+            <input type="text" id="certibot-input" placeholder="Ask me anything..." onkeypress="handleEnter(event)">
+            <button onclick="startVoiceRecognition()" id="mic-btn" style="background: #48bb78; margin-right: 5px;"
+                title="Voice Command">🎤</button>
+            <button onclick="sendMessage()">➤</button>
+        </div>
+    </div>
+
+    <script>
+        // Init Tilt for static cards
+        document.addEventListener("DOMContentLoaded", function () {
+            // Initialize things
+            loadSampleData(); // Existing
+            startTour(); // Start tour if new user
+            initNotifications();
+
+            // Initialize 3D Holofoil Effect
+            if (typeof VanillaTilt !== 'undefined') {
+                VanillaTilt.init(document.querySelectorAll(".card"), {
+                    max: 5,
+                    speed: 400,
+                    glare: true,
+                    "max-glare": 0.2,
+                    scale: 1.02
+                });
+            }
+        });
+    </script>
+    <script src="scripts/darkmode.js"></script>
+
+    <style>
+        .blur-sensitive {
+            filter: blur(6px);
+            transition: filter 0.3s ease;
+            user-select: none;
+        }
+
+        /* Holofoil Effect */
+        .card,
+        .certificate-item {
+            transform-style: preserve-3d;
+            transform: perspective(1000px);
+        }
+
+        /* Progress Bar Animation */
+        @keyframes fillProgress {
+            from {
+                width: 0;
+            }
+
+            to {
+                width: var(--target-width);
+            }
+        }
+
+        .animated-progress {
+            animation: fillProgress 1.5s ease-out forwards;
+        }
+
+        /* Badge Unlock Animation */
+        @keyframes unlockBadge {
+            0% {
+                transform: scale(1);
+                filter: grayscale(100%);
+                opacity: 0.5;
+            }
+
+            50% {
+                transform: scale(1.2);
+                filter: grayscale(0%);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1);
+                filter: grayscale(0%);
+                opacity: 1;
+            }
+        }
+
+        .badge-unlock {
+            animation: unlockBadge 1s ease-out forwards;
+        }
+
+        .js-tilt-glare {
+            border-radius: 20px;
+        }
+
+        /* CertiBot Styles */
+        #certibot-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            z-index: 1000;
+            transition: transform 0.3s;
+        }
+
+        #certibot-btn:hover {
+            transform: scale(1.1);
+        }
+
+        #certibot-widget {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 350px;
+            height: 500px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.2);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+            border: 1px solid #e2e8f0;
+        }
+
+        .certibot-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+
+        .certibot-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f7fafc;
+        }
+
+        .certibot-input-area {
+            padding: 15px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 10px;
+            background: white;
+        }
+
+        .certibot-input-area input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 20px;
+            outline: none;
+        }
+
+        .certibot-input-area button {
+            background: #667eea;
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 10px 15px;
+            border-radius: 15px;
+            max-width: 80%;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .user-message {
+            background: #667eea;
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+            border-bottom-right-radius: 2px;
+        }
+
+        .bot-message {
+            background: #e2e8f0;
+            color: #2d3748;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        .quick-replies {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .quick-replies button {
+            background: #fff;
+            border: 1px solid #667eea;
+            color: #667eea;
+            padding: 5px 10px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .quick-replies button:hover {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+    <script src="scripts/certibot.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #667eea;
+            --accent-color: #764ba2;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+
+        .navbar {
+            background: #4A47A3;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .nav-links a:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .card h3 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(74, 71, 163, 0.25);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .status {
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status.verified {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status.issued {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .blockchain-info {
+            background: #e8f4fd;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .certificate-item {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+
+        .certificate-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .certificate-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .certificate-info h5 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .certificate-actions {
+            text-align: right;
+        }
+
+        .certificate-actions .btn {
+            margin-bottom: 0.5rem;
+            display: block;
+            width: 100%;
+            min-width: 140px;
+        }
+
+        .search-results {
+            margin-top: 2rem;
+        }
+
+        .search-results h4 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .no-results {
+            text-align: center;
+            color: #666;
+            margin: 2rem 0;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 0 1rem;
+            }
+
+            .navbar-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .certificate-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .certificate-actions {
+                text-align: center;
+                margin-top: 1rem;
+            }
+
+            .certificate-actions .btn {
+                display: inline-block;
+                width: auto;
+                margin: 0.25rem;
+            }
+        }
+
+        /* Premium Certificate Styles */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Cinzel:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Great+Vibes&family=Lato:wght@300;400;700&display=swap');
+
+        .certificate-modal-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+
+
+        .paper-certificate {
+            width: 100%;
+            max-width: 900px;
+            background: #fff;
+            position: relative;
+            padding: 40px;
+            color: #1e293b;
+            font-family: 'Playfair Display', serif;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 600px;
+        }
+
+        /* Ornamental Border */
+        .certificate-border {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            bottom: 15px;
+            border: 2px solid #b45309;
+            /* Bronze/Gold */
+            outline: 1px solid #1e293b;
+            outline-offset: 4px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .certificate-border::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            right: 4px;
+            bottom: 4px;
+            border: 1px solid #b45309;
+        }
+
+        /* Watermark Background */
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.03;
+            font-size: 400px;
+            pointer-events: none;
+            z-index: 0;
+            font-family: 'Cinzel', serif;
+        }
+
+        /* Content Layer */
+        .certificate-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        .certificate-header-logo {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .certificate-title {
+            font-family: 'Cinzel', serif;
+            font-size: 3rem;
+            color: #1e293b;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 10px;
+            font-weight: 700;
+            border-bottom: 2px solid #b45309;
+            display: inline-block;
+            padding-bottom: 10px;
+        }
+
+        .certificate-subtitle {
+            font-size: 1.5rem;
+            font-style: italic;
+            color: #475569;
+            margin-bottom: 40px;
+        }
+
+        .recipient-intro {
+            font-family: 'Lato', sans-serif;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #64748b;
+            margin-bottom: 10px;
+        }
+
+        .recipient-name {
+            font-family: 'Great Vibes', cursive;
+            font-size: 4rem;
+            color: #b45309;
+            margin: 10px 0 30px 0;
+            text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.1);
+        }
+
+        .certificate-body {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.3rem;
+            line-height: 1.6;
+            color: #334155;
+            max-width: 80%;
+            margin: 0 auto 50px auto;
+        }
+
+        .degree-highlight {
+            font-weight: bold;
+            color: #1e293b;
+            border-bottom: 1px solid #cbd5e1;
+        }
+
+        /* Footer Section */
+        .certificate-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: auto;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 30px;
+        }
+
+        .footer-left {
+            text-align: left;
+            font-family: 'Lato', sans-serif;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .footer-left p {
+            margin: 4px 0;
+            font-family: monospace;
+        }
+
+        .footer-center {
+            text-align: center;
+        }
+
+        .signature-line {
+            width: 200px;
+            border-bottom: 1px solid #1e293b;
+            margin: 0 auto 10px auto;
+            height: 40px;
+            /* Space for signature image */
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            font-family: 'Great Vibes', cursive;
+            font-size: 1.5rem;
+            color: #1e293b;
+        }
+
+        .signature-label {
+            font-family: 'Lato', sans-serif;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+
+        .footer-right {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid #e2e8f0;
+            padding: 10px;
+            border-radius: 8px;
+            background: #f8fafc;
+        }
+
+        .qr-placeholder {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 5px;
+        }
+
+        .verify-text {
+            font-family: 'Lato', sans-serif;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #b45309;
+            font-weight: bold;
+        }
+
+        /* Badge */
+        .blockchain-badge {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            width: 80px;
+            height: 80px;
+            z-index: 10;
+        }
+
+        .seal-icon {
+            font-size: 60px;
+            color: #b45309;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+            transform: rotate(15deg);
+        }
+
+        /* Modern Template Styles */
+        .modern-certificate {
+            font-family: 'Poppins', sans-serif;
+            border: 10px solid #f0f2f5;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .modern-certificate .certificate-border {
+            display: none;
+        }
+
+        .modern-certificate .certificate-header-logo {
+            display: none;
+        }
+
+        .modern-certificate .header-section {
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .modern-certificate .certificate-title {
+            font-family: 'Poppins', sans-serif;
+            border-bottom: none;
+            color: #2d3748;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .modern-certificate .recipient-name {
+            font-family: 'Poppins', sans-serif;
+            color: #667eea;
+            font-weight: 700;
+            text-shadow: none;
+        }
+
+        /* Tech Template Styles */
+        .tech-certificate {
+            background: #1a202c;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            border: 2px solid #00ff00;
+        }
+
+        .tech-certificate .certificate-border {
+            border: 1px dashed #00ff00;
+            outline: none;
+        }
+
+        .tech-certificate .watermark {
+            color: #00ff00;
+            opacity: 0.05;
+        }
+
+        .tech-certificate .certificate-title,
+        .tech-certificate .recipient-name,
+        .tech-certificate .certificate-subtitle,
+        .tech-certificate .recipient-intro,
+        .tech-certificate .certificate-body {
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+            border-bottom: none;
+        }
+
+        .tech-certificate .recipient-name {
+            font-size: 3rem;
+        }
+
+        .tech-certificate .footer-right {
+            border-color: #00ff00;
+            background: transparent;
+        }
+
+        .tech-certificate .verify-text {
+            color: #00ff00;
+        }
+
+
+        /* Close Button for Modal */
+        .close-modal-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        /* Profile Page Redesign Styles */
+
+        .profile-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 900px) {
+            .profile-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .profile-card-left {
+            background: #fff;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .profile-card-right {
+            background: #fff;
+            border-radius: 12px;
+            padding: 2rem 3rem;
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(226, 232, 240, 0.6);
+        }
+
+        .profile-avatar-container {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 1.5rem auto;
+        }
+
+        .profile-avatar {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #fff;
+            box-shadow: 0 0 0 4px #4A47A3;
+        }
+
+        .verification-badge {
+            position: absolute;
+            bottom: 5px;
+            right: 0px;
+            width: 35px;
+            height: 35px;
+            background: linear-gradient(135deg, #00C6FF 0%, #0072FF 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            border: 3px solid #fff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        .camera-icon-btn {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background: #667eea;
+            /* Purple accent */
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .profile-role-badge {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 2rem;
+        }
+
+        .change-photo-btn {
+            background: #4A47A3;
+            color: white;
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+
+        .details-section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            /* margin-top: 2rem; Add top margin for secondary sections */
+        }
+
+        .details-section-title:first-child {
+            margin-top: 0;
+        }
+
+        .detail-row {
+            display: flex;
+            align-items: baseline;
+            padding: 1rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            width: 150px;
+            font-weight: 700;
+            color: #2d3748;
+            flex-shrink: 0;
+        }
+
+        .detail-value {
+            color: #4a5568;
+            font-weight: 400;
+            flex-grow: 1;
+        }
+
+        /* Profile Page Redesign - 3-Card Layout */
+        .profile-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+
+        .section-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            /* Soft premium shadow */
+            border: 1px solid rgba(226, 232, 240, 0.4);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            transition: transform 0.3s ease;
+        }
+
+        .section-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 1rem;
+        }
+
+        .section-header h3 {
+            color: #4A47A3;
+            /* Deep Indigo */
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-content {
+            flex-grow: 1;
+        }
+
+        /* Account & Login Specifics */
+        .account-field {
+            margin-bottom: 1.2rem;
+        }
+
+        .field-label {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .field-value {
+            font-size: 1rem;
+            color: #2d3748;
+            font-weight: 500;
+            background: #f8fafc;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .field-value.readonly {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        /* Personal Info Specifics */
+        .profile-header-compact {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .compact-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #4A47A3;
+        }
+
+        /* Education Specifics */
+        .cgpa-container {
+            background: linear-gradient(135deg, #4A47A3, #667eea);
+            padding: 1.5rem;
+            border-radius: 15px;
+            color: white;
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .cgpa-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .cgpa-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .progress-bar-bg {
+            background: rgba(255, 255, 255, 0.2);
+            height: 8px;
+            border-radius: 4px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            background: #4ade80;
+            /* Success Green */
+            height: 100%;
+            border-radius: 4px;
+            width: 85%;
+            /* Dynamic */
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Cyberpunk Preloader -->
+    <div id="preloader">
+        <div class="loader-ring"></div>
+        <div style="font-size: 14px; letter-spacing: 2px;">INITIALIZING SECURE LINK...</div>
+    </div>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="logo">🔗 CertiChain</div>
+            <div class="nav-links">
+                <a href="student_dashboard.html">Dashboard</a>
+                <a href="achievements.html" class="active-nav">Achievements</a>
+                <a href="#" onclick="showVerificationPanel()">Verify Certificates</a>
+                <a href="#" onclick="showProfilePanel()">Profile</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+            <div class="user-profile">
+                <!-- Theme Picker -->
+                <div style="margin-right: 15px; display: inline-flex; gap: 5px;">
+                    <div onclick="setTheme('#667eea', '#764ba2')"
+                        style="width: 20px; height: 20px; background: #667eea; border-radius: 50%; cursor: pointer; border: 2px solid white; box-shadow: 0 0 2px rgba(0,0,0,0.3);"
+                        title="Cyber Blue"></div>
+                    <div onclick="setTheme('#48bb78', '#38a169')"
+                        style="width: 20px; height: 20px; background: #48bb78; border-radius: 50%; cursor: pointer; border: 2px solid white; box-shadow: 0 0 2px rgba(0,0,0,0.3);"
+                        title="Hacker Green"></div>
+                    <div onclick="setTheme('#ed64a6', '#d53f8c')"
+                        style="width: 20px; height: 20px; background: #ed64a6; border-radius: 50%; cursor: pointer; border: 2px solid white; box-shadow: 0 0 2px rgba(0,0,0,0.3);"
+                        title="Neon Pink"></div>
+                    <div onclick="setTheme('#f56565', '#c53030')"
+                        style="width: 20px; height: 20px; background: #f56565; border-radius: 50%; cursor: pointer; border: 2px solid white; box-shadow: 0 0 2px rgba(0,0,0,0.3);"
+                        title="Alert Red"></div>
+                </div>
+
+                <!-- Privacy Mode Toggle -->
+                <button onclick="togglePrivacyMode()"
+                    style="background: none; border: none; font-size: 20px; cursor: pointer; margin-right: 15px;"
+                    title="Toggle Privacy Mode">
+                    <span id="privacy-icon">👁️</span>
+                </button>
+
+
+
+                <!-- Language Toggle -->
+                <select onchange="changeLanguage(this.value)"
+                    style="margin-right: 15px; padding: 5px; border-radius: 5px; border: 1px solid #cbd5e0; font-size: 12px; cursor: pointer;">
+                    <option value="en">🇬🇧 EN</option>
+                    <option value="es">🇪🇸 ES</option>
+                    <option value="fr">🇫🇷 FR</option>
+                </select>
+
+                <!-- Resume Builder Btn -->
+                <button onclick="openResumeMaker()" class="pulse-effect"
+                    style="margin-right: 15px; padding: 5px 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">✨
+                    Resume Maker AI</button>
+
+                <!-- Notification Bell -->
+                <div class="notification-wrapper" style="position: relative; margin-right: 20px; cursor: pointer;"
+                    onclick="toggleNotifications()">
+                    <span style="font-size: 24px;">🔔</span>
+                    <span class="badge pulse-effect"
+                        style="position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px;">3</span>
+                    <!-- Dropdown -->
+                    <div id="notification-dropdown"
+                        style="display: none; position: absolute; right: 0; top: 35px; background: white; width: 300px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); border-radius: 10px; border: 1px solid #e2e8f0; z-index: 100;">
+                        <div style="padding: 10px; border-bottom: 1px solid #eee; font-weight: bold; color: #333;">
+                            Notifications</div>
+                        <div id="notification-list" style="max-height: 300px; overflow-y: auto;">
+                            <!-- Items injected via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="user-info">
+                    <img src="https://ui-avatars.com/api/?name=Student+User&background=random" alt="User Avatar">
+                    <span>Student Name</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Session Lock Overlay -->
+    <div id="session-lock"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(26, 32, 44, 0.95); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; color: white;">
+        <div style="font-size: 60px; margin-bottom: 20px;">🔒</div>
+        <h2 style="margin-bottom: 10px;">Session Locked</h2>
+        <p style="color: #cbd5e0; margin-bottom: 30px;">Due to inactivity, your session has been locked for security.
+        </p>
+        <button onclick="unlockSession()"
+            style="padding: 12px 30px; background: #48bb78; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold;">Unlock
+            Dashboard 🔓</button>
+    </div>
+
+    <!-- Job Details Modal -->
+    <div id="job-modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;">
+        <div
+            style="background: white; width: 500px; max-width: 90%; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: slideIn 0.3s ease-out;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
+                <div style="display: flex; align-items: center;">
+                    <span id="modal-icon" style="font-size: 30px; margin-right: 15px;">🚀</span>
+                    <div>
+                        <h2 id="modal-title" style="margin: 0; color: #2d3748; font-size: 18px;">Job Title</h2>
+                        <div id="modal-company" style="color: #718096; font-size: 14px;">Company Name</div>
+                    </div>
+                </div>
+                <button onclick="closeJobModal()"
+                    style="background: none; border: none; font-size: 24px; cursor: pointer; color: #718096;">&times;</button>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <span id="modal-salary"
+                    style="background: #e2e8f0; color: #2d3748; padding: 4px 10px; border-radius: 15px; font-size: 12px; font-weight: bold;">$0k
+                    - $0k</span>
+            </div>
+
+            <p id="modal-desc" style="color: #4a5568; line-height: 1.6; font-size: 14px; margin-bottom: 20px;">
+                Job description goes here.
+            </p>
+
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin: 0 0 10px 0; color: #2d3748; font-size: 14px;">Key Skills & Requirements:</h4>
+                <div id="modal-skills" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    <!-- Skills injected here -->
+                </div>
+            </div>
+
+            <a id="modal-link" href="#" target="_blank"
+                style="display: block; width: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold;">Apply
+                Now 🚀</a>
+        </div>
+    </div>
+    <!-- Resume Maker Modal -->
+    <div id="resume-modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+        <div
+            style="background: white; width: 600px; max-width: 90%; border-radius: 12px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: slideIn 0.3s ease-out; display: flex; flex-direction: column;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #edf2f7; padding-bottom: 15px; margin-bottom: 20px;">
+                <h2
+                    style="margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                    ✨ AI Resume Creator</h2>
+                <button onclick="closeResumeModal()"
+                    style="background: none; border: none; font-size: 24px; cursor: pointer; color: #a0aec0;">&times;</button>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label
+                    style="display: block; font-size: 12px; font-weight: bold; color: #4a5568; margin-bottom: 5px;">Full
+                    Name</label>
+                <input type="text" id="resume-name" value="Student Name"
+                    style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <label style="font-size: 12px; font-weight: bold; color: #4a5568;">Professional Summary</label>
+                    <button onclick="generateAISummary()"
+                        style="font-size: 10px; background: #ed64a6; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer;">✨
+                        AI Generate</button>
+                </div>
+                <textarea id="resume-summary" rows="4"
+                    style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: sans-serif; resize: vertical;"
+                    placeholder="Click 'AI Generate' to create a summary based on your certificates..."></textarea>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label
+                    style="display: block; font-size: 12px; font-weight: bold; color: #4a5568; margin-bottom: 5px;">Core
+                    Skills (Comma separated)</label>
+                <input type="text" id="resume-skills" value="Cybersecurity, Blockchain, Python"
+                    style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px;">
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: auto;">
+                <button onclick="closeResumeModal()"
+                    style="flex: 1; padding: 12px; background: #e2e8f0; color: #4a5568; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Cancel</button>
+                <button onclick="generateResumePDF()"
+                    style="flex: 1; padding: 12px; background: linear-gradient(135deg, #48bb78 0%, #38b2ac 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px rgba(56, 178, 172, 0.3);">Download
+                    PDF 📄</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Dashboard Overview -->
+        <div id="dashboard-overview">
+            <h2>Welcome back, <span id="dashboard-welcome-name">Student</span>! 👋</h2>
+            <p>Manage and verify digital certificates using blockchain technology</p>
+            <h2>My Achievements 🏆</h2>
+            <p>Track your progress and unlock badges</p>
+
+            <!-- Achievements Stats -->
+            <div style="display: flex; gap: 20px; margin-bottom: 30px; margin-top: 20px; flex-wrap: wrap;">
+                <div class="card" style="flex: 1; text-align: center; padding: 1.5rem;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">🏅</div>
+                    <h3 id="total-badges-count" style="font-size: 2rem; color: #4A47A3; margin-bottom: 5px;">0</h3>
+                    <p style="color: #718096; font-weight: 600;">Badges Earned</p>
+                </div>
+                <!-- XP & Level Card -->
+                <div class="card" style="flex: 2; padding: 1.5rem;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div>
+                            <h3 id="current-rank" style="font-size: 1.8rem; color: #4A47A3; margin: 0;">Level 1: Novice
+                                🛡️</h3>
+                            <p style="color: #718096; font-size: 0.9rem;">Total XP: <span id="current-xp">0</span></p>
+                        </div>
+                        <div style="font-size: 2.5rem;">🚀</div>
+                    </div>
+
+                    <div
+                        style="background: #edf2f7; height: 12px; border-radius: 6px; overflow: hidden; position: relative;">
+                        <div id="level-progress-bar"
+                            style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: 0%; border-radius: 6px; transition: width 1s ease-in-out;">
+                        </div>
+                    </div>
+                    <div
+                        style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.8rem; color: #a0aec0;">
+                        <span>Current Level</span>
+                        <span id="xp-to-next">0 XP to next level</span>
+                    </div>
+                </div>
+                <div class="card" style="flex: 1; text-align: center; padding: 1.5rem;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">🔥</div>
+                    <h3 id="streak-count" style="font-size: 2rem; color: #4A47A3; margin-bottom: 5px;">0</h3>
+                    <p style="color: #718096; font-weight: 600;">Day Streak</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>All Badges</h3>
+                <div id="full-achievements-list"
+                    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+                    <!-- Badges injected via JS -->
+                </div>
+            </div>
+        </div>
+        <!-- Profile Panel Redesigned -->
+        <div id="profile-panel" style="display: none;">
+            <h2 id="profile-heading" style="text-align: center; margin-bottom: 2rem; color: #2d3748; font-size: 2rem;">
+                My Profile
+            </h2>
+
+            <div class="profile-grid">
+                <!-- Card 1: Account & Login Details -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>🔒 Account & Login</h3>
+                    </div>
+                    <div class="section-content">
+                        <div class="account-field">
+                            <div class="field-label">Username</div>
+                            <div class="field-value" id="profile-username">student_user</div>
+                        </div>
+                        <div class="account-field">
+                            <div class="field-label">Registered Email</div>
+                            <div class="field-value" id="profile-email">student@example.com</div>
+                        </div>
+                        <div class="account-field">
+                            <div class="field-label">User ID</div>
+                            <div class="field-value readonly" id="profile-id">12345678</div>
+                        </div>
+                        <button class="btn btn-secondary" style="width: 100%; margin-top: 1rem;">Change
+                            Password</button>
+                    </div>
+                </div>
+
+
+                <!-- Card 2: Personal Information -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>👤 Personal Information</h3>
+                    </div>
+                    <div class="section-content">
+                        <div class="profile-header-compact">
+                            <div class="profile-avatar-container" style="width: 80px; height: 80px;">
+                                <img src="https://via.placeholder.com/150/CBD5E1/888888?text=Student"
+                                    alt="Profile Photo" class="profile-avatar" id="avatar-img"
+                                    style="width: 80px; height: 80px;">
+                                <div class="verification-badge"
+                                    style="width: 20px; height: 20px; font-size: 12px; right: 0; bottom: 0;">✓</div>
+                                <!-- Hidden Input for Logic -->
+                                <input type="file" id="profile-photo-input" accept="image/*" style="display: none;"
+                                    onchange="handlePhotoUpload(this)">
+                            </div>
+                            <div>
+                                <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.9rem;"
+                                    onclick="triggerPhotoUpload()">Change Photo</button>
+                            </div>
+                        </div>
+
+                        <div class="account-field">
+                            <div class="field-label">Full Name</div>
+                            <div class="field-value" id="profile-name">John Doe</div>
+                        </div>
+                        <div class="account-field">
+                            <div class="field-label">Date of Birth</div>
+                            <div class="field-value" id="profile-dob">15/08/2000</div>
+                        </div>
+                        <div class="account-field">
+                            <div class="field-label">Gender</div>
+                            <div class="field-value" id="profile-gender">Not Set</div>
+                        </div>
+                        <div class="account-field">
+                            <div class="field-label">Mobile Number</div>
+                            <div class="field-value" id="profile-mobile">+1 555-0123</div>
+                        </div>
+                        <div class="account-field">
+                            <div class="field-label">Address</div>
+                            <div class="field-value" id="profile-address">Not Set</div>
+                        </div>
+                        <button class="btn" id="edit-profile-btn" style="width: 100%; margin-top: 1rem;"
+                            onclick="toggleEditProfile()">Edit Profile</button>
+                    </div>
+                </div>
+
+                <!-- Card 3: Education Details -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>🎓 Education Details</h3>
+                    </div>
+                    <div class="section-content">
+                        <div class="account-field">
+                            <div class="field-label">Course / Degree</div>
+                            <div class="field-value" id="profile-branch">Computer Science</div>
+                        </div>
+                        <div class="account-field">
+                            <div class="field-label">Institution Name</div>
+                            <div class="field-value" id="profile-college">University of Tech</div>
+                        </div>
+                        <div class="account-field">
+                            <div class="field-label">Current Year</div>
+                            <div class="field-value" id="profile-year">3rd Year</div>
+                        </div>
+
+                        <div class="cgpa-container">
+                            <div class="cgpa-value" id="profile-gpa-display">3.8</div>
+                            <div class="cgpa-label">CGPA / Percentage</div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="profile-gpa-bar" style="width: 76%;"></div>
+                                <!-- Assumed scale of 5.0 for 3.8 = 76% -->
+                            </div>
+                        </div>
+
+                        <button class="btn btn-secondary" onclick="showDashboard()"
+                            style="width: 100%; margin-top: 2rem;">Back to Dashboard</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Certificate Verification Panel -->
+        <div id="verification-panel" style="display: none;">
+            <div class="card">
+                <h3>🔍 Verify Certificate</h3>
+                <div class="form-group"><label for="verification-input">Enter Certificate ID, Transaction
+                        Hash, or QR Code</label><input type="text" id="verification-input"
+                        placeholder="e.g., 0x1234... or CERT-001"></div><button class="btn"
+                    onclick="verifyCertificate()">Verify Certificate</button><button class="btn btn-secondary"
+                    onclick="showDashboard()">Back to Dashboard</button>
+                <div style="text-align: right; margin-top: 10px;"><a href="#" onclick="toggleFindId()"
+                        style="font-size: 0.9rem; color: #667eea; text-decoration: none;">Forgot Certificate
+                        ID?</a></div>
+                <div id="find-id-panel"
+                    style="display: none; margin-top: 15px; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <h4 style="margin-bottom: 10px; color: #4a5568;">Find Your Certificate ID</h4>
+                    <div class="form-group"><label for="find-name">Full Name</label><input type="text" id="find-name"
+                            placeholder="Enter your full name"></div>
+                    <div class="form-group"><label for="find-college">College Name</label><input type="text"
+                            id="find-college" placeholder="Enter college name"></div>
+                    <div class="form-group"><label for="find-branch">Branch</label><input type="text" id="find-branch"
+                            placeholder="Enter branch"></div><button class="btn btn-secondary"
+                        onclick="findCertificateId()">Search ID</button>
+                    <div id="find-id-results" style="margin-top: 10px;"></div>
+                </div>
+                <div id="verification-result" style="display: none;">
+                    <div class="card" style="margin-top: 1rem;">
+                        <h4>Verification Result</h4>
+                        <div id="verification-details"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Blockchain Panel -->
+        <div id="blockchain-panel" style="display: none;">
+            <div class="card">
+                <h3>⛓️ Blockchain Network Status</h3>
+                <div class="form-group"><label for="network-select">Select Network</label><select id="network-select">
+                        <option value="ethereum">Ethereum (Goerli Testnet)</option>
+                        <option value="polygon">Polygon (Mumbai Testnet)</option>
+                        <option value="local">Local Blockchain</option>
+                    </select></div><button class="btn" onclick="connectWallet()">Connect
+                    Wallet</button><button class="btn btn-secondary" onclick="showDashboard()">Back to
+                    Dashboard</button>
+                <div id="blockchain-status" style="margin-top: 1rem;">
+                    <div class="blockchain-info">
+                        <p><strong>Network:</strong><span id="current-network">Not Connected</span></p>
+                        <p><strong>Wallet Address:</strong><span id="wallet-address">Not
+                                Connected</span></p>
+                        <p><strong>Balance:</strong><span id="wallet-balance">0 ETH</span></p>
+                        <p><strong>Last Block:</strong><span id="last-block">-</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Certificate Download Panel -->
+        <div id="download-panel" style="display: none;">
+            <div class="card">
+                <h3>📥 Download Certificates</h3>
+                <div class="form-group"><label for="download-search">Search Certificate by ID, Name,
+                        or Email</label><input type="text" id="download-search"
+                        placeholder="e.g., CERT-001, John Doe, or john@email.com"
+                        onkeypress="handleSearchKeyPress(event)"></div><button class="btn"
+                    onclick="searchCertificates()">Search Certificates</button><button class="btn btn-secondary"
+                    onclick="showDashboard()">Back to Dashboard</button>
+                <div id="certificate-list" style="margin-top: 2rem;">
+                    < !-- Certificate list will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <script> // Global variables
+        let provider = null;
+        let signer = null;
+        let certificates = [];
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function () {
+            // FORCE REFRESH CHECK
+
+
+            // Check if user is logged in
+            checkUserSession();
+
+            // Set default date to today - REMOVED for Student Dashboard
+            // document.getElementById('issuing-date').valueAsDate = new Date();
+
+            // Load sample data
+            loadSampleData();
+
+            // Initialize blockchain connection
+            initializeBlockchain();
+
+            // Check PDF library loading
+            checkPDFLibrary();
+
+            // Load profile data immediately for dashboard summary
+            loadProfileData();
+
+            // Open Dashboard by default (User Experience improvement)
+            showDashboard();
+        });
+
+        function checkPDFLibrary() {
+
+            // Wait a bit for libraries to load
+            setTimeout(() => {
+                if (typeof window.jspdf === 'undefined') {
+                    console.warn('jsPDF library not loaded - PDF downloads may not work');
+                    // You could show a warning to the user here
+                }
+
+                else {
+                    console.log('PDF library loaded successfully');
+                }
+            }
+
+                , 2000);
+        }
+
+        // Check user session
+        function checkUserSession() {
+            const user = localStorage.getItem('certichain_user');
+
+            if (!user) {
+                alert('Please log in to access the dashboard.');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            try {
+                const userData = JSON.parse(user);
+
+                // Check if session is still valid (optional: add session timeout)
+                const loginTime = new Date(userData.loginTime);
+                const currentTime = new Date();
+                const hoursSinceLogin = (currentTime - loginTime) / (1000 * 60 * 60);
+
+                // Optional: Auto-logout after 24 hours
+                if (hoursSinceLogin > 24) {
+                    alert('Your session has expired. Please log in again.');
+                    localStorage.removeItem('certichain_user');
+                    localStorage.removeItem('certichain_certificates'); // Clear certificates on logout
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                console.log('Welcome back, ' + (userData.name || userData.email) + '!');
+
+                // Update user session timestamp
+                userData.lastAccess = new Date().toISOString();
+                localStorage.setItem('certichain_user', JSON.stringify(userData));
+
+                // Auto-fill student details for "Find Certificate ID" if available
+                if (userData.role === 'student') {
+                    if (userData.name) document.getElementById('find-name').value = userData.name;
+                    if (userData.collegeName) document.getElementById('find-college').value = userData.collegeName;
+                    if (userData.branchName) document.getElementById('find-branch').value = userData.branchName;
+
+                    // Automatically open the "Find ID" panel if details are present but we don't know the ID yet
+                    if (userData.name || userData.collegeName) {
+                        document.getElementById('find-id-panel').style.display = 'block';
+                    }
+                }
+
+            }
+
+            catch (error) {
+                console.error('Error parsing user data:', error);
+                localStorage.removeItem('certichain_user');
+                localStorage.removeItem('certichain_certificates');
+                window.location.href = 'index.html';
+            }
+        }
+
+        function showDashboard() {
+            document.getElementById('dashboard-overview').style.display = 'block';
+
+            document.getElementById('verification-panel').style.display = 'none';
+            document.getElementById('blockchain-panel').style.display = 'none';
+            document.getElementById('download-panel').style.display = 'none';
+        }
+
+
+
+        function showVerificationPanel() {
+            document.getElementById('dashboard-overview').style.display = 'none';
+
+            document.getElementById('verification-panel').style.display = 'block';
+            document.getElementById('blockchain-panel').style.display = 'none';
+            document.getElementById('download-panel').style.display = 'none';
+        }
+
+        function showBlockchainPanel() {
+            document.getElementById('dashboard-overview').style.display = 'none';
+
+            document.getElementById('verification-panel').style.display = 'none';
+            document.getElementById('blockchain-panel').style.display = 'block';
+            document.getElementById('download-panel').style.display = 'none';
+        }
+
+        function showProfilePanel() {
+            console.log("Showing profile panel...");
+            document.getElementById('dashboard-overview').style.display = 'none';
+
+            document.getElementById('verification-panel').style.display = 'none';
+            document.getElementById('blockchain-panel').style.display = 'none';
+            document.getElementById('download-panel').style.display = 'none';
+            document.getElementById('profile-panel').style.display = 'block';
+
+            loadProfileData();
+        }
+
+        function loadProfileData() {
+            const user = localStorage.getItem('certichain_user');
+            console.log("Loading profile data: ", user);
+
+            if (user) {
+                const userData = JSON.parse(user);
+
+                if (userData.name) {
+                    const firstName = userData.name.split(' ')[0];
+                    document.getElementById('profile-heading').textContent = `Hi, ${firstName}!`;
+                    // Update Dashboard Welcome
+                    if (document.getElementById('dashboard-welcome-name'))
+                        document.getElementById('dashboard-welcome-name').textContent = firstName;
+                } else {
+                    document.getElementById('profile-heading').textContent = `Hi there!`;
+                }
+
+                // --- Dashboard Summary Updates ---
+                if (document.getElementById('dash-name')) document.getElementById('dash-name').textContent = userData.name || 'John Doe';
+                if (document.getElementById('dash-id')) document.getElementById('dash-id').textContent = userData.studentId || '-';
+                if (document.getElementById('dash-course')) document.getElementById('dash-course').textContent = userData.branchName || '-';
+
+
+
+
+                // --- 1. Account & Login ---
+                // Generate a username based on name or email if not present
+                const username = userData.username || (userData.email ? userData.email.split('@')[0] : 'student_user');
+                if (document.getElementById('profile-username')) document.getElementById('profile-username').textContent = username;
+                if (document.getElementById('profile-email')) document.getElementById('profile-email').textContent = userData.email || 'student@example.com';
+                if (document.getElementById('profile-id')) document.getElementById('profile-id').textContent = userData.studentId || '12345678';
+
+
+                // --- 2. Personal Information ---
+                document.getElementById('profile-name').textContent = userData.name || 'John Doe';
+                document.getElementById('profile-dob').textContent = userData.dob || '15/08/2000';
+                document.getElementById('profile-mobile').textContent = userData.mobileNumber || '+1 555-0123';
+                document.getElementById('profile-gender').textContent = userData.gender || 'Not Set';
+                document.getElementById('profile-address').textContent = userData.address || 'Not Set';
+
+                // Update avatar if stored
+                if (userData.profileImage) {
+                    document.getElementById('avatar-img').src = userData.profileImage;
+                }
+
+                // --- 3. Education Details ---
+                document.getElementById('profile-branch').textContent = userData.branchName || 'Computer Science';
+                document.getElementById('profile-college').textContent = userData.collegeName || 'University of Tech';
+                // Improve year display logic
+                let yearText = '3rd Year';
+                if (userData.yearOfStudy) {
+                    yearText = userData.yearOfStudy + (userData.yearOfStudy == 1 ? 'st' : userData.yearOfStudy == 2 ? 'nd' : userData.yearOfStudy == 3 ? 'rd' : 'th') + ' Year';
+                }
+                document.getElementById('profile-year').textContent = yearText;
+
+                // GPA Logic
+                const gpa = userData.gpa || '3.8';
+                document.getElementById('profile-gpa-display').textContent = gpa;
+
+                // Update Progress Bar (Assuming scale of 5.0, or 10.0. Let's guess 5.0 for standard GPA, 10 for CGPA logic. 
+                // Let's assume standard 4.0/5.0 scale for now. If > 5, assume max 10.
+                let gpaVal = parseFloat(gpa);
+                let percentage = 75; // default
+                if (!isNaN(gpaVal)) {
+                    if (gpaVal <= 5) percentage = (gpaVal / 5) * 100; // 4.0 scale -> 80%
+                    else percentage = (gpaVal / 10) * 100; // 10.0 scale
+                }
+                document.getElementById('profile-gpa-bar').style.width = percentage + '%';
+
+            } else {
+                console.error("No user found in localStorage");
+            }
+        }
+
+        function showDownloadPanel() {
+            document.getElementById('dashboard-overview').style.display = 'none';
+
+            document.getElementById('verification-panel').style.display = 'none';
+            document.getElementById('blockchain-panel').style.display = 'none';
+            document.getElementById('download-panel').style.display = 'block';
+
+            // Load all certificates by default
+            displayCertificates(certificates);
+        }
+
+        function loadSampleData() {
+            // Load certificates from localStorage or initialize with sample data
+            loadCertificatesFromStorage();
+            updateStatistics();
+        }
+
+        function loadCertificatesFromStorage() {
+            try {
+                const storedCertificates = localStorage.getItem('certichain_certificates');
+
+                if (storedCertificates) {
+                    certificates = JSON.parse(storedCertificates);
+                    console.log('Loaded', certificates.length, 'certificates from storage');
+                }
+
+                else {
+                    // Try to recover from backup
+                    const backupCertificates = localStorage.getItem('certichain_certificates_backup');
+
+                    if (backupCertificates) {
+                        try {
+                            certificates = JSON.parse(backupCertificates);
+                            console.log('Recovered', certificates.length, 'certificates from backup');
+                            saveCertificatesToStorage(); // Restore main storage
+                        }
+
+                        catch (backupError) {
+                            console.error('Error loading from backup:', backupError);
+                            initializeWithSampleData();
+                        }
+                    }
+
+                    else {
+                        initializeWithSampleData();
+                    }
+                }
+            }
+
+            catch (error) {
+                console.error('Error loading certificates from storage:', error);
+
+                // Try to recover from backup
+                try {
+                    const backupCertificates = localStorage.getItem('certichain_certificates_backup');
+
+                    if (backupCertificates) {
+                        certificates = JSON.parse(backupCertificates);
+                        console.log('Recovered', certificates.length, 'certificates from backup after error');
+                        saveCertificatesToStorage();
+                    }
+
+                    else {
+                        initializeWithSampleData();
+                    }
+                }
+
+                catch (backupError) {
+                    console.error('Error loading from backup:', backupError);
+                    initializeWithSampleData();
+                }
+            }
+        }
+
+        function initializeWithSampleData() {
+            certificates = [{
+                id: 'CERT-001',
+                recipientName: 'John Doe',
+                recipientEmail: 'john.doe@email.com',
+                type: 'Degree Certificate',
+                issuingDate: '2024-01-15',
+                description: 'Bachelor of Science in Computer Science',
+                status: 'verified',
+                transactionHash: '0x1234567890abcdef1234567890abcdef12345678',
+                ipfsHash: 'QmSampleHash123456789',
+                ipfsHash: 'QmSampleHash123456789',
+                collegeName: 'Global Institute of Technology',
+                branch: 'Computer Science',
+                collegeAddress: '123 Tech Park, Innovation City',
+                timestamp: '2024-01-15T10:00:00.000Z'
+            }
+
+                ,
+            {
+                id: 'CERT-002',
+                recipientName: 'Jane Smith',
+                recipientEmail: 'jane.smith@email.com',
+                type: 'Course Completion',
+                issuingDate: '2024-01-20',
+                description: 'Advanced Web Development Course',
+                status: 'pending',
+                transactionHash: '0xabcdef1234567890abcdef1234567890abcdef12',
+                ipfsHash: 'QmSampleHash987654321',
+                ipfsHash: 'QmSampleHash987654321',
+                collegeName: 'Future Web Academy',
+                branch: 'Software Development',
+                collegeAddress: '456 Coding Lane, Web Valley',
+                timestamp: '2024-01-20T14:30:00.000Z'
+            }
+
+            ];
+            saveCertificatesToStorage();
+            console.log('Initialized with sample certificates');
+        }
+
+        function saveCertificatesToStorage() {
+            try {
+                localStorage.setItem('certichain_certificates', JSON.stringify(certificates));
+                console.log('Saved', certificates.length, 'certificates to storage');
+
+                // Remove backup to save space
+                localStorage.removeItem('certichain_certificates_backup');
+            }
+
+            catch (error) {
+                console.error('Error saving certificates to storage:', error);
+                if (error.name === 'QuotaExceededError' || error.code === 22) {
+                    alert('Storage Limit Reached. Unable to save certificates.');
+                } else {
+                    alert('Warning: Could not save certificates to local storage: ' + error.message);
+                }
+            }
+        }
+
+        function backupCertificates() {
+            try {
+                const backupData = {
+                    certificates: certificates,
+                    backupDate: new Date().toISOString(),
+                    userAgent: navigator.userAgent
+                }
+
+                    ;
+
+                const backupBlob = new Blob([JSON.stringify(backupData, null, 2)], {
+                    type: 'application/json'
+                });
+                const backupUrl = URL.createObjectURL(backupBlob);
+
+                const a = document.createElement('a');
+                a.href = backupUrl;
+
+                a.download = `certichain_backup_$ {
+                new Date().toISOString().split('T')[0]
+            }
+
+            .json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(backupUrl);
+
+                alert('Certificate backup downloaded successfully!');
+
+            }
+
+            catch (error) {
+                console.error('Error creating backup:', error);
+                alert('Error creating backup: ' + error.message);
+            }
+        }
+
+        function restoreCertificatesFromBackup() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+
+            input.onchange = function (event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+
+                reader.onload = function (e) {
+                    try {
+                        const backupData = JSON.parse(e.target.result);
+
+                        if (backupData.certificates && Array.isArray(backupData.certificates)) {
+                            const confirmRestore = confirm(`This will restore $ {
+                                    backupData.certificates.length
+                                }
+
+                                certificates. Current certificates will be replaced. Continue?`);
+
+                            if (confirmRestore) {
+                                certificates = backupData.certificates;
+                                saveCertificatesToStorage();
+                                updateStatistics();
+
+                                // Refresh the display if download panel is open
+                                if (document.getElementById('download-panel').style.display !== 'none') {
+                                    displayCertificates(certificates);
+                                }
+
+                                alert('Certificates restored successfully!');
+                            }
+                        }
+
+                        else {
+                            alert('Invalid backup file format.');
+                        }
+                    }
+
+                    catch (error) {
+                        console.error('Error parsing backup file:', error);
+                        alert('Error reading backup file: ' + error.message);
+                    }
+                }
+
+                    ;
+
+                reader.readAsText(file);
+            }
+
+                ;
+
+            input.click();
+        }
+
+        function updateStatistics() {
+            document.getElementById('total-certs').textContent = certificates.length;
+            document.getElementById('verified-today').textContent = certificates.filter(c => c.status === 'verified').length;
+            document.getElementById('blockchain-tx').textContent = certificates.filter(c => c.transactionHash).length;
+            updateDataStatus();
+        }
+
+        function updateDataStatus() {
+            const dataStatusElement = document.getElementById('data-status');
+
+            try {
+                const storedCertificates = localStorage.getItem('certichain_certificates');
+
+                if (storedCertificates) {
+                    const storedCount = JSON.parse(storedCertificates).length;
+
+                    if (storedCount === certificates.length) {
+                        dataStatusElement.textContent = '✅ Persisted';
+                        dataStatusElement.style.color = '#28a745';
+                    }
+
+                    else {
+                        dataStatusElement.textContent = '⚠️ Sync Issue';
+                        dataStatusElement.style.color = '#ffc107';
+                    }
+                }
+
+                else {
+                    dataStatusElement.textContent = '❌ Not Persisted';
+                    dataStatusElement.style.color = '#dc3545';
+                }
+            }
+
+            catch (error) {
+                dataStatusElement.textContent = '❌ Error';
+                dataStatusElement.style.color = '#dc3545';
+            }
+        }
+
+        // Certificate issuance
+        document.getElementById('certificate-form').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            try {
+                // Simulate blockchain transaction
+                const transactionHash = await simulateBlockchainTransaction();
+
+                // Create certificate object
+                const certificate = {
+                    id: 'CERT-' + (certificates.length + 1).toString().padStart(3, '0'),
+                    recipientName: document.getElementById('recipient-name').value,
+                    recipientEmail: document.getElementById('recipient-email').value,
+                    type: document.getElementById('certificate-type').value,
+                    issuingDate: document.getElementById('issuing-date').value,
+                    description: document.getElementById('certificate-description').value,
+                    collegeName: document.getElementById('college-name').value,
+                    branch: document.getElementById('branch-name').value,
+                    collegeAddress: document.getElementById('college-address').value,
+                    status: 'issued',
+                    transactionHash: transactionHash,
+                    ipfsHash: await simulateIPFSUpload(),
+                    timestamp: new Date().toISOString()
+                }
+
+                    ;
+
+                certificates.push(certificate);
+                saveCertificatesToStorage(); // Save to localStorage
+                updateStatistics();
+
+                alert(`Certificate issued successfully !\nCertificate ID: $ {
+                            certificate.id
+                        }
+
+                        \nTransaction Hash: $ {
+                            transactionHash
+                        }
+
+                        `);
+
+                // Reset form
+                document.getElementById('certificate-form').reset();
+                document.getElementById('issuing-date').valueAsDate = new Date();
+
+            }
+
+            catch (error) {
+                alert('Error issuing certificate: ' + error.message);
+            }
+        });
+
+        async function simulateBlockchainTransaction() {
+            // Simulate blockchain transaction delay
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Generate fake transaction hash
+            const chars = '0123456789abcdef';
+            let hash = '0x';
+
+            for (let i = 0; i < 40; i++) {
+                hash += chars[Math.floor(Math.random() * chars.length)];
+            }
+
+            return hash;
+        }
+
+        async function simulateIPFSUpload() {
+            // Simulate IPFS upload delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Generate fake IPFS hash
+            const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            let hash = 'Qm';
+
+            for (let i = 0; i < 44; i++) {
+                hash += chars[Math.floor(Math.random() * chars.length)];
+            }
+
+            return hash;
+        }
+
+        // Certificate verification
+        function verifyCertificate() {
+            const input = document.getElementById('verification-input').value.trim();
+
+            if (!input) {
+                alert('Please enter a certificate ID or transaction hash');
+                return;
+            }
+
+            // Find certificate
+            let certificate = null;
+
+            if (input.startsWith('0x')) {
+                // Search by transaction hash
+                certificate = certificates.find(c => c.transactionHash === input);
+            }
+
+            else {
+                // Search by certificate ID
+                certificate = certificates.find(c => c.id === input);
+            }
+
+            if (certificate) {
+                displayVerificationResult(certificate);
+            }
+
+            else {
+                alert('Certificate not found. Please check your input and try again.');
+            }
+        }
+
+        function toggleFindId() {
+            const panel = document.getElementById('find-id-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function findCertificateId() {
+            const name = document.getElementById('find-name').value.trim().toLowerCase();
+            const college = document.getElementById('find-college').value.trim().toLowerCase();
+            const branch = document.getElementById('find-branch').value.trim().toLowerCase();
+            const resultsDiv = document.getElementById('find-id-results');
+
+            if (!name && !college && !branch) {
+                resultsDiv.innerHTML = '<p style="color: #e53e3e;">Please enter at least one detail to search.</p>';
+                return;
+            }
+
+            const matches = certificates.filter(c => {
+                const matchName = !name || c.recipientName.toLowerCase().includes(name);
+                const matchCollege = !college || (c.collegeName && c.collegeName.toLowerCase().includes(college));
+                const matchBranch = !branch || (c.branch && c.branch.toLowerCase().includes(branch));
+                return matchName && matchCollege && matchBranch;
+            });
+
+            if (matches.length > 0) {
+                let html = '<p style="color: #059669; font-weight: 500;">Found ' + matches.length + ' matching certificate(s):</p>';
+                html += '<ul style="list-style: none; padding: 0; margin-top: 5px;">';
+
+                matches.forEach(m => {
+                    html += ` <li style="padding: 8px; border-bottom: 1px solid #eee; font-size: 0.9rem;" > <strong>ID:</strong> $ {
+                            m.id
+                        }
+
+                        <br> <span style="color: #718096; font-size: 0.8rem;" >$ {
+                            m.recipientName
+                        }
+
+                        - $ {
+                            m.collegeName || 'N/A'
+                        }
+
+                        </span> <br> <button onclick="useCertificateId('${m.id}')" style="background: none; border: none; color: #667eea; cursor: pointer; padding: 0; font-size: 0.8rem; margin-top: 3px;" > Use this ID </button> </li> `;
+                });
+                html += '</ul>';
+                resultsDiv.innerHTML = html;
+            }
+
+            else {
+                resultsDiv.innerHTML = '<p style="color: #e53e3e;">No matching certificates found.</p>';
+            }
+        }
+
+        function useCertificateId(id) {
+            document.getElementById('verification-input').value = id;
+            document.getElementById('find-id-panel').style.display = 'none';
+        }
+
+        function displayVerificationResult(certificate) {
+            const resultDiv = document.getElementById('verification-result');
+            const detailsDiv = document.getElementById('verification-details');
+
+            detailsDiv.innerHTML = ` <p><strong>Certificate ID:</strong>$ {
+                certificate.id
+            }
+
+            </p><p><strong>Recipient:</strong>$ {
+                certificate.recipientName
+            }
+
+            </p><p><strong>Type:</strong>$ {
+                certificate.type
+            }
+
+            </p><p><strong>Issuing Date:</strong>$ {
+                certificate.issuingDate
+            }
+
+            </p><p><strong>College:</strong>$ {
+                certificate.collegeName || 'N/A'
+            }
+
+            </p><p><strong>Branch:</strong>$ {
+                certificate.branch || 'N/A'
+            }
+
+            </p><p><strong>Address:</strong>$ {
+                certificate.collegeAddress || 'N/A'
+            }
+
+            </p><p><strong>Description:</strong>$ {
+                certificate.description
+            }
+
+            </p><p><strong>Status:</strong><span class="status ${certificate.status}">$ {
+                certificate.status
+            }
+
+            </span></p><p><strong>Transaction Hash:</strong>$ {
+                certificate.transactionHash
+            }
+
+            </p><p><strong>IPFS Hash:</strong>$ {
+                certificate.ipfsHash
+            }
+
+            </p><p><strong>Blockchain Verified:</strong>✅ Yes</p><p><strong>Timestamp:</strong>$ {
+                certificate.timestamp
+            }
+
+            </p><div style="text-align: center; margin: 1rem 0;"><h4>QR Code for Verification</h4><img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(certificate.transactionHash)}" alt="QR Code"><br><br><button class="btn" onclick="downloadCertificate('${certificate.id}')" style="margin-top: 1rem;">📥 Download Certificate PDF </button></div>`;
+
+            resultDiv.style.display = 'block';
+        }
+
+        // Blockchain integration
+        async function initializeBlockchain() {
+            try {
+
+                // Check if MetaMask is installed
+                if (typeof window.ethereum !== 'undefined') {
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+
+                    // Listen for account changes
+                    window.ethereum.on('accountsChanged', function (accounts) {
+                        if (accounts.length > 0) {
+                            updateBlockchainStatus();
+                        }
+
+                        else {
+                            resetBlockchainStatus();
+                        }
+                    });
+
+                    // Listen for network changes
+                    window.ethereum.on('chainChanged', function (chainId) {
+                        updateBlockchainStatus();
+                    });
+
+                }
+
+                else {
+                    console.log('MetaMask not installed');
+                }
+            }
+
+            catch (error) {
+                console.error('Error initializing blockchain:', error);
+            }
+        }
+
+        async function connectWallet() {
+            try {
+                if (!provider) {
+                    alert('Please install MetaMask to connect your wallet');
+                    return;
+                }
+
+                // Request account access
+                const accounts = await provider.send("eth_requestAccounts", []);
+
+                if (accounts.length > 0) {
+                    signer = provider.getSigner();
+                    await updateBlockchainStatus();
+                }
+
+            }
+
+            catch (error) {
+                console.error('Error connecting wallet:', error);
+                alert('Error connecting wallet: ' + error.message);
+            }
+        }
+
+        async function updateBlockchainStatus() {
+            try {
+                if (!provider || !signer) return;
+
+                const network = await provider.getNetwork();
+                const address = await signer.getAddress();
+                const balance = await provider.getBalance(address);
+                const lastBlock = await provider.getBlockNumber();
+
+                document.getElementById('current-network').textContent = network.name || 'Unknown';
+                document.getElementById('wallet-address').textContent = address.substring(0, 6) + '...' + address.substring(38);
+                document.getElementById('wallet-balance').textContent = ethers.utils.formatEther(balance) + ' ETH';
+                document.getElementById('last-block').textContent = lastBlock;
+
+            }
+
+            catch (error) {
+                console.error('Error updating blockchain status:', error);
+            }
+        }
+
+        function resetBlockchainStatus() {
+            document.getElementById('current-network').textContent = 'Not Connected';
+            document.getElementById('wallet-address').textContent = 'Not Connected';
+            document.getElementById('wallet-balance').textContent = '0 ETH';
+            document.getElementById('last-block').textContent = '-';
+        }
+
+        function debugProfileData() {
+            const user = localStorage.getItem('certichain_user');
+
+            if (user) {
+                alert("Raw Stored Data:\n" + user);
+                console.log("Raw Data:", JSON.parse(user));
+                // Voice Recognition Logic (Web Speech API)
+                function startVoiceRecognition() {
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    if (!SpeechRecognition) {
+                        alert("Your browser does not support Voice Recognition. Please use Chrome or Edge.");
+                        return;
+                    }
+
+                    const recognition = new SpeechRecognition();
+                    recognition.lang = 'en-US';
+                    recognition.interimResults = false;
+                    recognition.maxAlternatives = 1;
+
+                    const micBtn = document.getElementById('mic-btn');
+                    micBtn.innerHTML = '👂'; // Listening state
+                    micBtn.style.background = '#e53e3e'; // Red for recording
+
+                    recognition.start();
+
+                    recognition.onresult = (event) => {
+                        const speechResult = event.results[0][0].transcript;
+                        document.getElementById('certibot-input').value = speechResult;
+                        sendMessage(); // Auto-send
+                    };
+
+                    recognition.onspeechend = () => {
+                        recognition.stop();
+                        micBtn.innerHTML = '🎤';
+                        micBtn.style.background = '#48bb78';
+                    };
+
+                    recognition.onerror = (event) => {
+                        console.error('Speech recognition error', event.error);
+                        micBtn.innerHTML = '🎤';
+                        micBtn.style.background = '#48bb78';
+                        alert("Voice check failed: " + event.error);
+                    };
+                }
+
+                function searchCertificates() {
+                    const searchTerm = document.getElementById('download-search').value.trim().toLowerCase();
+
+                    if (!searchTerm) {
+                        displayCertificates(certificates);
+                        return;
+                    }
+
+                    const filteredCertificates = certificates.filter(cert => cert.id.toLowerCase().includes(searchTerm) || cert.recipientName.toLowerCase().includes(searchTerm) || cert.recipientEmail.toLowerCase().includes(searchTerm) || cert.type.toLowerCase().includes(searchTerm));
+
+                    displayCertificates(filteredCertificates);
+                }
+
+                function displayCertificates(certs) {
+                    const listDiv = document.getElementById('certificate-list');
+
+                    if (certs.length === 0) {
+                        listDiv.innerHTML = '<div class="no-results">No certificates found.</div>';
+                        return;
+                    }
+
+                    let html = '<div class="search-results"><h4>Available Certificates</h4>';
+
+                    certs.forEach(cert => {
+                        html += ` <div class="certificate-item" data-tilt data-tilt-max="5" data-tilt-scale="1.02" data-tilt-glare data-tilt-max-glare="0.2"> <div class="certificate-header" > <div class="certificate-info" > <h5>$ {
+                        cert.id
+                    }
+
+                    </h5> <p><strong>Recipient:</strong> $ {
+                        cert.recipientName
+                    }
+
+                    </p> <p><strong>Email:</strong> $ {
+                        cert.recipientEmail
+                    }
+
+                    </p> <p><strong>Type:</strong> $ {
+                        cert.type
+                    }
+
+                    </p> <p><strong>Date:</strong> $ {
+                        cert.issuingDate
+                    }
+
+                    </p> <p><strong>Status:</strong> <span class="status ${cert.status}" >$ {
+                        cert.status
+                    }
+
+                    </span></p> </div> <div class="certificate-actions" > 
+                    <button class="btn" style="background:#0077b5; margin-bottom:5px;" onclick="shareOnLinkedIn('${cert.id}')">👔 Share on LinkedIn</button>
+                    <button class="btn" onclick="downloadCertificate('${cert.id}')" > 📥 Download PDF </button> <button class="btn btn-secondary" onclick="viewCertificateDetails('${cert.id}')" > 👁️ View Details </button> <button class="btn" style="background: #dc3545;" onclick="deleteCertificate('${cert.id}')" > 🗑️ Delete </button> </div> </div> </div> `;
+                    });
+
+                    html += '</div>';
+                    listDiv.innerHTML = html;
+
+                    // Initialize Tilt for new elements
+                    if (typeof VanillaTilt !== 'undefined') {
+                        VanillaTilt.init(document.querySelectorAll(".certificate-item"));
+                    }
+                }
+
+                function shareOnLinkedIn(id) {
+                    const url = encodeURIComponent(`https://certichain.demo/verify?id=${id}`);
+                    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, '_blank');
+                }
+
+                function deleteCertificate(certificateId) {
+                    if (confirm('Are you sure you want to delete this certificate? This action cannot be undone.')) {
+                        // Remove from array
+                        certificates = certificates.filter(c => c.id !== certificateId);
+
+                        // Save to storage
+                        saveCertificatesToStorage();
+
+                        // Update UI
+                        updateStatistics();
+
+                        // Refresh list if we are in search/delete mode
+                        const searchTerm = document.getElementById('download-search').value.trim().toLowerCase();
+
+                        if (searchTerm) {
+                            searchCertificates();
+                        }
+
+                        else {
+                            displayCertificates(certificates);
+                        }
+
+                        alert('Certificate deleted successfully.');
+                    }
+                }
+
+                function downloadCertificate(certificateId) {
+                    const certificate = certificates.find(c => c.id === certificateId);
+
+                    if (!certificate) {
+                        alert('Certificate not found!');
+                        return;
+                    }
+
+                    // Show loading message
+                    const originalText = event.target.textContent;
+                    event.target.textContent = '⏳ Generating PDF...';
+                    event.target.disabled = true;
+
+                    try {
+
+                        // Check if jsPDF is available
+                        if (typeof window.jspdf === 'undefined') {
+                            console.error('jsPDF library not loaded');
+                            alert('PDF library not loaded. Please refresh the page and try again.');
+                            return;
+                        }
+
+                        // Generate PDF using html2canvas
+                        generateCertificatePDFv2(certificate);
+
+                    }
+
+                    catch (error) {
+                        console.error('Error generating PDF:', error);
+                        alert('Error generating PDF: ' + error.message);
+
+                        // Restore button
+                        event.target.textContent = originalText;
+                        event.target.disabled = false;
+                    }
+                }
+
+                async function generateCertificatePDFv2(certificate) {
+                    // Create a temporary container for generating the PDF
+                    const tempContainer = document.createElement('div');
+                    tempContainer.style.position = 'absolute';
+                    tempContainer.style.top = '-9999px';
+                    tempContainer.style.left = '-9999px';
+                    tempContainer.style.width = '900px'; // Fixed width for consistency
+
+                    // Inject the certificate HTML
+                    tempContainer.innerHTML = getCertificateTemplate(certificate, true);
+                    document.body.appendChild(tempContainer);
+
+                    try {
+                        // Wait for images to load (QR code) - slight delay
+                        await new Promise(resolve => setTimeout(resolve, 500));
+
+                        const canvas = await html2canvas(tempContainer.querySelector('.paper-certificate'), {
+                            scale: 2, // Higher quality
+                            useCORS: true, // Allow loading cross-origin images (QR code)
+                            logging: false
+                        });
+
+                        const imgData = canvas.toDataURL('image/png');
+
+                        const {
+                            jsPDF
+                        }
+
+                            = window.jspdf;
+
+                        // A4 landscape: 297x210mm
+                        // A4 portrait: 210x297mm
+                        // Our certificate is designed more like portrait/square-ish, but let's fit it to A4 Portrait
+                        const doc = new jsPDF('p', 'mm', 'a4');
+                        const pdfWidth = doc.internal.pageSize.getWidth();
+                        const pdfHeight = doc.internal.pageSize.getHeight();
+
+                        const imgProps = doc.getImageProperties(imgData);
+                        const ratio = imgProps.width / imgProps.height;
+
+                        // Calculate dimensions to fit on page with some margin
+                        const margin = 10;
+                        let imgWidth = pdfWidth - (margin * 2);
+                        let imgHeight = imgWidth / ratio;
+
+                        doc.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
+
+                        // Save
+                        const fileName = `Certificate_$ {
+                certificate.id
+            }
+
+            _$ {
+                certificate.recipientName.replace(/\s+/g, '_')
+            }
+
+            .pdf`;
+                        doc.save(fileName);
+
+                        // Success message
+                        alert(`Certificate $ {
+                    certificate.id
+                }
+
+                downloaded successfully !`);
+
+                    }
+
+                    catch (error) {
+                        console.error('PDF Generation Error:', error);
+                        alert('Failed to generate PDF. check console for details.');
+                    }
+
+                    finally {
+                        // Cleanup
+                        document.body.removeChild(tempContainer);
+
+                        // Restore button state (we need to find the button again as 'event' might be lost in async)
+                        // In a real app we'd pass the button element or ID, but for now the user will see the alert.
+                        const buttons = document.querySelectorAll('button');
+
+                        buttons.forEach(btn => {
+                            if (btn.textContent.includes('Generating')) {
+                                btn.textContent = '📥 Download PDF';
+                                btn.disabled = false;
+                            }
+                        });
+                    }
+                }
+
+                function generateCertificatePDF(certificate) {
+
+                    // Create new PDF document
+                    const {
+                        jsPDF
+                    }
+
+                        = window.jspdf;
+                    const doc = new jsPDF('p', 'mm', 'a4');
+
+                    // Set up colors
+                    const primaryColor = [102,
+                        126,
+                        234]; // #667eea
+                    const secondaryColor = [118,
+                        75,
+                        162]; // #764ba2
+                    const textColor = [51,
+                        51,
+                        51]; // #333
+                    const lightGray = [102,
+                        102,
+                        102]; // #666
+
+                    // Add background gradient effect (simulated with rectangles)
+                    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                    doc.rect(0, 0, 210, 297, 'F');
+
+                    // Add white certificate area
+                    doc.setFillColor(255, 255, 255);
+                    doc.roundedRect(15, 15, 180, 267, 5, 5, 'F');
+
+                    // Add border
+                    doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                    doc.setLineWidth(2);
+                    doc.roundedRect(15, 15, 180, 267, 5, 5, 'S');
+
+                    // Header section
+                    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                    doc.roundedRect(20, 20, 170, 25, 3, 3, 'F');
+
+                    // Certificate title
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(28);
+                    doc.setFont('helvetica', 'bold');
+
+                    doc.text('CEIGNORE_THIS_CALL', 105, 35, {
+                        align: 'center'
+                    });
+
+                    // Subtitle
+                    doc.setFontSize(14);
+                    doc.setFont('helvetica', 'normal');
+
+                    doc.text('OF ACHIEVEMENT', 105, 42, {
+                        align: 'center'
+                    });
+
+                    // Main content
+                    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+                    doc.setFontSize(12);
+
+                    doc.text('This is to certify that', 105, 70, {
+                        align: 'center'
+                    });
+
+                    // Recipient name
+                    doc.setFontSize(24);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+
+                    doc.text(certificate.recipientName, 105, 85, {
+                        align: 'center'
+                    });
+
+                    // Description
+                    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'normal');
+
+                    doc.text('has successfully completed', 105, 100, {
+                        align: 'center'
+                    });
+
+                    // Certificate description
+                    doc.setFontSize(14);
+                    doc.setFont('helvetica', 'bold');
+                    const descriptionLines = doc.splitTextToSize(certificate.description, 150);
+
+                    doc.text(descriptionLines, 105, 115, {
+                        align: 'center'
+                    });
+
+                    // Details section
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(lightGray[0], lightGray[1], lightGray[2]);
+
+                    let yPos = 150;
+                    const details = [['Certificate ID:',
+                        certificate.id],
+                    ['Type:',
+                        certificate.type],
+                    ['Issued Date:',
+                        certificate.issuingDate],
+                    ['Status:',
+                        certificate.status.toUpperCase()]];
+
+                    details.forEach(([label, value]) => {
+                        doc.setFont('helvetica', 'bold');
+                        doc.text(label, 30, yPos);
+                        doc.setFont('helvetica', 'normal');
+                        doc.text(value, 30, yPos + 5);
+                        yPos += 15;
+                    });
+
+                    // Blockchain verification section
+                    doc.setFillColor(240, 248, 255);
+                    doc.roundedRect(20, 220, 170, 50, 3, 3, 'F');
+
+                    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+
+                    doc.text('CertiChain Blockchain Certificate', 105, 235, {
+                        align: 'center'
+                    });
+
+                    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+                    doc.setFontSize(8);
+                    doc.setFont('helvetica', 'normal');
+
+                    // Transaction hash
+                    doc.text('Transaction Hash:', 25, 245);
+                    const txHash = certificate.transactionHash.substring(0, 20) + '...';
+                    doc.text(txHash, 25, 250);
+
+                    // IPFS hash
+                    doc.text('IPFS Hash:', 25, 258);
+                    const ipfsHash = certificate.ipfsHash.substring(0, 20) + '...';
+                    doc.text(ipfsHash, 25, 263);
+
+                    // Timestamp
+                    doc.text('Issued:', 105, 245);
+                    const issueDate = new Date(certificate.timestamp).toLocaleDateString();
+                    doc.text(issueDate, 105, 250);
+
+                    // QR Code placeholder
+                    doc.setDrawColor(lightGray[0], lightGray[1], lightGray[2]);
+                    doc.rect(150, 240, 30, 30);
+                    doc.setFontSize(6);
+
+                    doc.text('QR Code', 165, 255, {
+                        align: 'center'
+                    });
+
+                    doc.text('Available', 165, 260, {
+                        align: 'center'
+                    });
+
+                    doc.text('Online', 165, 265, {
+                        align: 'center'
+                    });
+
+                    // Footer
+                    doc.setTextColor(lightGray[0], lightGray[1], lightGray[2]);
+                    doc.setFontSize(8);
+
+                    doc.text('Generated by CertiChain - Blockchain Certificate System', 105, 285, {
+                        align: 'center'
+                    });
+
+                    const fileName = `Certificate_$ {
+            certificate.id
+        }
+
+        _$ {
+            certificate.recipientName.replace(/\s+/g, '_')
+        }
+
+        .pdf`;
+                    doc.save(fileName);
+                }
+
+                function getCertificateTemplate(certificate, forDownload = false) {
+                    // Determine template class
+                    const templateClass = certificate.template === 'modern' ? 'modern-certificate' :
+                        certificate.template === 'tech' ? 'tech-certificate' : 'paper-certificate';
+
+                    // If forDownload is true, we remove the buttons
+                    const buttonSection = forDownload ? '' : ` <div style="margin-top: 20px; text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 15px;" > <button class="btn" onclick="downloadCertificate('${certificate.id}')" style="margin-right: 1rem;" > 📥 Download PDF </button> <button class="btn" onclick="explainCertificateWithAI('${certificate.id}')" style="margin-right: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%);" > 🤖 Explain with AI </button> </div> `;
+
+                    return ` <div class="${templateClass}"><div class="certificate-border"></div><div class="watermark">⚖️</div><div class="blockchain-badge"><div class="seal-icon">🏅</div></div><div class="certificate-content"><div class="header-section"><div class="certificate-header-logo">🔗</div><h2 style="font-family: 'Cinzel', serif; font-size: 2rem; color: #1e293b; margin-bottom: 5px; text-transform: uppercase;">$ {
+                certificate.collegeName || 'CertiChain University'
+            }
+
+            </h2><p style="font-family: 'Lato', sans-serif; font-size: 0.9rem; color: #64748b; margin-bottom: 20px;">$ {
+                certificate.collegeAddress || 'Blockchain Campus'
+            }
+
+            </p><h1 class="certificate-title">Certificate of Achievement</h1><h2 class="certificate-subtitle">CertiChain Blockchain Certification</h2></div><div class="recipient-section"><p class="recipient-intro">This is to certify that</p><h1 class="recipient-name">$ {
+                certificate.recipientName
+            }
+
+            </h1><div class="certificate-body"><p>Has successfully completed all requirements for the</p><p class="degree-highlight" style="font-size: 1.8rem; margin: 15px 0;">$ {
+                certificate.type
+            }
+
+            in $ {
+                certificate.branch || 'Specialized Studies'
+            }
+
+            </p><p>And is hereby awarded this certificate with all rights,
+            honors,
+            and privileges appertaining thereto.</p></div></div><div class="certificate-footer"><div class="footer-left"><p><strong>ISSUE DATE:</strong>$ {
+                certificate.issuingDate
+            }
+
+            </p><p><strong>CERT ID:</strong>$ {
+                certificate.id
+            }
+
+            </p><p title="${certificate.transactionHash}"><strong>TX:</strong>$ {
+                certificate.transactionHash.substring(0, 16)
+            }
+
+            ...</p><p><strong>IPFS:</strong>$ {
+                certificate.ipfsHash.substring(0, 10)
+            }
+
+            ...</p></div><div class="footer-right"><img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(certificate.transactionHash)}" class="qr-placeholder" alt="QR Code"><div class="verify-text">Scan to Verify</div></div></div>$ {
+                buttonSection
+            }
+
+            </div></div>`;
+                }
+
+                function viewCertificateDetails(certificateId) {
+                    const certificate = certificates.find(c => c.id === certificateId);
+
+                    if (!certificate) {
+                        alert('Certificate not found!');
+                        return;
+                    }
+
+                    // Show certificate details in a modal-like display
+                    const detailsHtml = ` <div class="certificate-modal-container" id="certificate-details-modal"><button class="close-modal-btn" onclick="document.getElementById('certificate-details-modal').remove()">✕</button>$ {
+                getCertificateTemplate(certificate, false)
+            }
+
+            </div>`;
+
+                    // Remove any existing modal (redundant safety check as we do it below anyway)
+                    const existingModal = document.getElementById('certificate-details-modal');
+                    if (existingModal) existingModal.remove();
+
+                    // Append to body instead of list for full screen modal
+                    document.body.insertAdjacentHTML('beforeend', detailsHtml);
+                }
+
+                async function explainCertificateWithAI(certificateId) {
+                    const certificate = certificates.find(c => c.id === certificateId);
+                    if (!certificate) return;
+
+                    // Find or create explanation container
+                    let explanationDiv = document.getElementById('ai-explanation-' + certificateId);
+
+                    // If it exists and is visible, toggle it off (or just return if we want to keep it simple)
+                    // For now, let's just create/update it.
+
+                    const modalContent = document.querySelector('#certificate-details-modal > div');
+
+                    if (!explanationDiv) {
+                        explanationDiv = document.createElement('div');
+                        explanationDiv.id = 'ai-explanation-' + certificateId;
+                        explanationDiv.style.marginTop = '1.5rem';
+                        explanationDiv.style.padding = '1rem';
+                        explanationDiv.style.backgroundColor = '#f0fdf4'; // Light green background
+                        explanationDiv.style.border = '1px solid #10b981';
+                        explanationDiv.style.borderRadius = '10px';
+                        explanationDiv.style.display = 'none'; // Hidden initially
+
+                        // Insert before the buttons
+                        const buttonsDiv = modalContent.lastElementChild;
+                        modalContent.insertBefore(explanationDiv, buttonsDiv);
+                    }
+
+                    // Show loading state
+                    explanationDiv.style.display = 'block';
+                    explanationDiv.innerHTML = ` <h5 style="color: #059669; margin-bottom: 0.5rem;">🤖 AI Explanation Analysis</h5><div style="display: flex; align-items: center; justify-content: center; padding: 1rem;"><span style="font-size: 1.2rem; margin-right: 10px;">⚡</span>Analyzing certificate details... </div>`;
+
+                    // Simulate AI delay
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+
+                    // Generate Mock Explanation based on certificate type
+                    let analysis = "";
+                    let skills = "";
+                    let career = "";
+
+                    if (certificate.type.toLowerCase().includes('degree')) {
+                        analysis = `This <strong>$ {
+                    certificate.type
+                }
+
+                </strong>represents a comprehensive level of academic achievement. It certifies that <strong>$ {
+                    certificate.recipientName
+                }
+
+                </strong>has mastered the fundamental and advanced concepts in their field of study.`;
+                        skills = "Critical thinking, specialized domain knowledge, research methodologies, and project management.";
+                        career = "This qualification opens doors to professional roles, graduate studies, and specialized positions in the industry.";
+                    }
+
+                    else if (certificate.type.toLowerCase().includes('course')) {
+                        analysis = `This <strong>$ {
+                    certificate.type
+                }
+
+                </strong>verifies that <strong>$ {
+                    certificate.recipientName
+                }
+
+                </strong>has successfully completed specific training modules. It demonstrates a proactive approach to continuous learning and skill enhancement.`;
+                        skills = "Specific technical or soft skills related to the course subject matter.";
+                        career = "Validates specific competencies that can lead to role enhancement or new project opportunities.";
+                    }
+
+                    else {
+                        analysis = `This <strong>$ {
+                    certificate.type
+                }
+
+                </strong>acknowledges specific accomplishments by <strong>$ {
+                    certificate.recipientName
+                }
+
+                </strong>. It serves as a verifiable record of their dedication and performance.`;
+                        skills = "Goal achievement, perseverance, and specific recognized talents.";
+                        career = "Enhances professional reputation and demonstrates a track record of success.";
+                    }
+
+                    // Typewriter effect content
+                    const finalContent = ` <h5 style="color: #059669; margin-bottom: 0.5rem;">🤖 AI Explanation Analysis</h5><p style="margin-bottom: 0.5rem; line-height: 1.5;">$ {
+                analysis
+            }
+
+            </p><div style="background: white; padding: 0.8rem; border-radius: 8px; margin-top: 0.5rem;"><p><strong>💡 Key Skills Validated:</strong>$ {
+                skills
+            }
+
+            </p><p style="margin-top: 0.5rem;"><strong>🚀 Career Impact:</strong>$ {
+                career
+            }
+
+            </p></div><div style="margin-top: 0.8rem; font-size: 0.8rem; color: #666; text-align: right;"><em>Generated by CertiChain AI Engine</em></div>`;
+
+                    explanationDiv.innerHTML = finalContent;
+                }
+
+                // Logout function
+                function logout() {
+                    if (confirm('Are you sure you want to logout?')) {
+                        // Optionally ask if user wants to keep certificates
+                        const keepCertificates = confirm('Do you want to keep your certificates for next login? (Click OK to keep, Cancel to clear all data)');
+
+                        if (!keepCertificates) {
+                            localStorage.removeItem('certichain_certificates');
+                            console.log('Certificates cleared on logout');
+                        }
+
+                        localStorage.removeItem('certichain_user');
+                        alert('Logged out successfully!');
+                        window.location.href = 'index.html';
+                    }
+                }
+
+
+                function triggerPhotoUpload() {
+                    document.getElementById('profile-photo-input').click();
+                }
+
+                function handlePhotoUpload(input) {
+                    if (input.files && input.files[0]) {
+                        const file = input.files[0];
+
+                        // 1. Initial Size Check
+                        if (file.size > 10 * 1024 * 1024) {
+                            alert("Image is too large. Please upload an image smaller than 10MB.");
+                            return;
+                        }
+
+                        const reader = new FileReader();
+
+                        reader.onload = function (e) {
+                            const img = new Image();
+                            img.src = e.target.result;
+
+                            img.onload = function () {
+                                // 2. Compress & Resize using Canvas
+                                const canvas = document.createElement('canvas');
+                                const ctx = canvas.getContext('2d');
+
+                                // Max dimensions
+                                const MAX_WIDTH = 300;
+                                const MAX_HEIGHT = 300;
+                                let width = img.width;
+                                let height = img.height;
+
+                                if (width > height) {
+                                    if (width > MAX_WIDTH) {
+                                        height *= MAX_WIDTH / width;
+                                        width = MAX_WIDTH;
+                                    }
+                                } else {
+                                    if (height > MAX_HEIGHT) {
+                                        width *= MAX_HEIGHT / height;
+                                        height = MAX_HEIGHT;
+                                    }
+                                }
+
+                                canvas.width = width;
+                                canvas.height = height;
+                                ctx.drawImage(img, 0, 0, width, height);
+
+                                // 3. Get compressed Data URL (JPEG 0.7)
+                                const compressedData = canvas.toDataURL('image/jpeg', 0.7);
+
+                                // Update UI
+                                document.getElementById('avatar-img').src = compressedData;
+
+                                // Save to localStorage
+                                const user = localStorage.getItem('certichain_user');
+                                if (user) {
+                                    try {
+                                        const userData = JSON.parse(user);
+                                        userData.profileImage = compressedData;
+                                        localStorage.setItem('certichain_user', JSON.stringify(userData));
+                                        console.log("Profile image optimized and saved.");
+                                        alert("Profile photo updated successfully!");
+                                    } catch (e) {
+                                        if (e.name === 'QuotaExceededError' || e.code === 22) {
+                                            alert("Storage Limit Reached. Please clear some browser data or use a smaller image.");
+                                        } else {
+                                            console.error("Error saving profile image:", e);
+                                            alert("Could not save image: " + e.message);
+                                        }
+                                    }
+                                }
+                            }
+                        };
+
+                        reader.readAsDataURL(file);
+                    }
+                }
+
+                function toggleEditProfile() {
+                    const btn = document.getElementById('edit-profile-btn');
+                    const isEditing = btn.textContent === 'Save Profile';
+
+                    const fields = [
+                        { id: 'profile-name', type: 'text' },
+                        { id: 'profile-dob', type: 'date' },
+                        { id: 'profile-gender', type: 'select', options: ['Male', 'Female', 'Other', 'Prefer not to say'] },
+                        { id: 'profile-mobile', type: 'tel' },
+                        { id: 'profile-address', type: 'text' }
+                    ];
+
+                    if (!isEditing) {
+                        // Swith to Edit Mode
+                        fields.forEach(field => {
+                            const el = document.getElementById(field.id);
+                            const currentValue = el.textContent;
+
+                            if (field.type === 'select') {
+                                let selectHtml = `<select id="input-${field.id}" style="padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; width: 100%;">`;
+                                field.options.forEach(opt => {
+                                    selectHtml += `<option value="${opt}" ${opt === currentValue ? 'selected' : ''}>${opt}</option>`;
+                                });
+                                selectHtml += `</select>`;
+                                el.innerHTML = selectHtml;
+                            } else {
+                                el.innerHTML = `<input type="${field.type}" id="input-${field.id}" value="${currentValue}" style="padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; width: 100%;">`;
+                            }
+                        });
+                        btn.textContent = 'Save Profile';
+                        btn.classList.remove('btn-primary'); // Assuming btn is primary by default
+                        btn.classList.add('btn-success'); // Visual feedback if class exists, or inline style
+                        btn.style.backgroundColor = '#48bb78'; // Green for save
+                    } else {
+                        // Save Changes
+                        const user = localStorage.getItem('certichain_user');
+                        let userData = user ? JSON.parse(user) : {};
+
+                        fields.forEach(field => {
+                            const input = document.getElementById(`input-${field.id}`);
+                            const newValue = input.value;
+                            const el = document.getElementById(field.id);
+
+                            // Update UI
+                            el.textContent = newValue;
+
+                            // Update Data Object
+                            // Mapping IDs to keys in userData
+                            // profile-name -> name, profile-dob -> dob, etc.
+                            const key = field.id.replace('profile-', '');
+                            // Special case mapping if needed, but current keys match (name, dob, mobileNumber??)
+
+                            if (field.id === 'profile-mobile') userData.mobileNumber = newValue;
+                            else userData[key] = newValue;
+                        });
+
+                        // Persist
+                        localStorage.setItem('certichain_user', JSON.stringify(userData));
+                        console.log("Profile updated:", userData);
+
+                        btn.textContent = 'Edit Profile';
+                        btn.style.backgroundColor = ''; // Reset to default CSS
+
+                        // Re-run load to ensure greeting etc updates if Name changed
+                        loadProfileData();
+                        alert("Profile updated successfully!");
+                    }
+                }
+    </script>
+
+
+    <script>
+                // PDF Generation Logic
+                window.downloadCertificate = async function (id) {
+                    const { jsPDF } = window.jspdf;
+
+                    const cert = certificates.find(c => c.id === id);
+                    if (!cert) return;
+
+                    // Create temporary container
+                    const container = document.createElement('div');
+                    container.style.width = '800px';
+                    container.style.padding = '40px';
+                    container.style.background = '#fff';
+                    container.style.border = '10px solid #667eea';
+                    container.style.position = 'absolute';
+                    container.style.top = '-9999px';
+                    container.style.fontFamily = 'serif';
+                    container.style.color = '#333';
+
+                    container.innerHTML = `
+    <div style="text-align:center;">
+        <h1 style="color:#667eea; font-size:40px; margin-bottom:10px;">CertiChain</h1>
+        <p style="color:#666;">Blockchain Verified Credential</p>
+        <hr style="margin:20px 0; border:none; border-top:1px solid #ccc;">
+        <p style="font-size:20px; margin-top:40px;">This is to certify that</p>
+        <h2 style="font-size:36px; color:#2d3748; margin:20px 0;">${cert.recipientName}</h2>
+        <p style="font-size:20px;">has successfully completed</p>
+        <h3 style="font-size:28px; color:#667eea; margin:20px 0;">${cert.type}</h3>
+        <p style="font-size:16px; margin-top:40px;">Date: ${cert.issuingDate}</p>
+        <p style="font-size:12px; margin-top:40px; color:#999;">ID: ${cert.id}</p>
+        <p style="font-size:12px; color:#999;">Hash: ${cert.transactionHash}</p>
+    </div>
+    `;
+
+                    document.body.appendChild(container);
+
+                    try {
+                        const canvas = await html2canvas(container);
+                        const imgData = canvas.toDataURL('image/png');
+                        const pdf = new jsPDF('l', 'mm', 'a4');
+                        const pdfWidth = pdf.internal.pageSize.getWidth();
+                        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+                        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                        pdf.save(`Certificate-${id}.pdf`);
+                    } catch (err) {
+                        console.error(err);
+                        alert("Error generating PDF");
+                    } finally {
+                        document.body.removeChild(container);
+                    }
+                };
+
+                // Initialize Skill Graph
+                function initSkillGraph() {
+                    const container = document.getElementById('skill-graph');
+                    if (!container || !certificates || certificates.length === 0) return;
+
+                    const nodes = new vis.DataSet([
+                        { id: 0, label: 'Me', color: '#667eea', shape: 'circle', size: 30, font: { color: '#fff' } }
+                    ]);
+                    const edges = new vis.DataSet([]);
+
+                    certificates.forEach((cert, index) => {
+                        const nodeId = index + 1;
+                        // Determine color based on type
+                        let color = '#48bb78';
+                        if (cert.type && cert.type.includes('Degree')) color = '#ecc94b';
+                        if (cert.type && cert.type.includes('Course')) color = '#4299e1';
+
+                        nodes.add({
+                            id: nodeId,
+                            label: cert.type ? cert.type.replace(' Certificate', '') : 'Skill',
+                            color: color,
+                            title: cert.description || 'Certificate' // Tooltip
+                        });
+                        edges.add({ from: 0, to: nodeId });
+                    });
+
+                    const data = { nodes, edges };
+                    const options = {
+                        nodes: {
+                            shape: 'dot',
+                            size: 16,
+                            font: { size: 14 }
+                        },
+                        physics: {
+                            stabilization: false,
+                            barnesHut: { gravitationalConstant: -8000, springConstant: 0.04, springLength: 95 }
+                        },
+                        interaction: { hover: true }
+                    };
+
+                    new vis.Network(container, data, options);
+                }
+
+                // Call after loading certificates
+                const originalDisplay = typeof displayCertificates === 'function' ? displayCertificates : function () { };
+                displayCertificates = function (certs) {
+                    originalDisplay(certs);
+                    setTimeout(initSkillGraph, 500); // Small delay to ensure container visibility
+                };
+
+                // Onboarding Tour
+                function startTour() {
+                    if (localStorage.getItem('certichain_tour_completed')) return;
+
+                    const driver = window.driver.js.driver;
+                    const driverObj = driver({
+                        showProgress: true,
+                        steps: [
+                            {
+                                element: '.navbar', popover: {
+                                    title: 'Welcome to CertiChain', description: 'This is your secure dashboard for managing blockchain credentials.'
+                                }
+                            },
+                            {
+                                element: '#skill-graph', popover: {
+                                    title: 'Skill Network', description: 'Visualize your verified skills and interconnected competencies here.'
+                                }
+                            },
+                            {
+                                element: '.dashboard-grid .card:last-child', popover: {
+                                    title: 'Your Certificates', description: 'All your verified certificates appear here. Hover for 3D effects!'
+                                }
+                            },
+                            {
+                                element: '#certibot-btn', popover: {
+                                    title: 'CertiBot Assistant', description: 'Need help? Chat with our AI assistant anytime.'
+                                }
+                            },
+                            {
+                                element: '.form-toggle-switch', popover: {
+                                    title: 'Dark Mode', description: 'Switch between Day and Cyber Night modes.'
+                                }
+                            }
+                        ],
+                        onDestroyed: () => {
+                            localStorage.setItem('certichain_tour_completed', 'true');
+                        }
+                    });
+
+                    setTimeout(() => {
+                        driverObj.drive();
+                    }, 1000);
+                }
+
+                // Initialize things
+                document.addEventListener('DOMContentLoaded', () => {
+                    loadSampleData(); // Existing
+                    startTour(); // Start tour if new user
+                    initNotifications();
+                });
+
+                // Notifications
+                function toggleNotifications() {
+                    const dropdown = document.getElementById('notification-dropdown');
+                    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+                }
+
+                function initNotifications() {
+                    const list = document.getElementById('notification-list');
+                    const notifications = [
+                        { title: 'New Certificate Issued', msg: 'You received "Advanced React Patterns"', time: '2 mins ago', icon: '🎓' },
+                        { title: 'Blockchain Sync', msg: 'Your credentials are now fully synced.', time: '1 hour ago', icon: '🔗' },
+                        { title: 'Profile Update', msg: 'Security settings updated successfully.', time: '1 day ago', icon: '🛡️' }
+                    ];
+
+                    list.innerHTML = notifications.map(n => `
+    <div style="padding: 10px; border-bottom: 1px solid #f7fafc; display: flex; align-items: start;">
+        <span style="margin-right: 10px; font-size: 20px;">${n.icon}</span>
+        <div>
+            <div style="font-weight: 600; font-size: 14px; color: #333;">${n.title}</div>
+            <div style="font-size: 12px; color: #666;">${n.msg}</div>
+            <div style="font-size: 10px; color: #999; margin-top: 2px;">${n.time}</div>
+        </div>
+    </div>
+    `).join('');
+
+                    // Close when clicking outside
+                    document.addEventListener('click', (e) => {
+                        if (!e.target.closest('.notification-wrapper')) {
+                            document.getElementById('notification-dropdown').style.display = 'none';
+                        }
+                    });
+                }
+
+                // Security: Frame Protection (Anti-Clickjacking)
+                if (window.top !== window.self) {
+                    window.top.location = window.self.location;
+                }
+
+                // Privacy Mode Logic
+                let isPrivacyMode = false;
+                function togglePrivacyMode() {
+                    isPrivacyMode = !isPrivacyMode;
+                    const icon = document.getElementById('privacy-icon');
+                    icon.textContent = isPrivacyMode ? '🙈' : '👁️';
+
+                    // Elements to blur
+                    const sensitiveElements = document.querySelectorAll('.card h3, .user-info span, .badge, #modal-salary, .wallet-balance');
+                    sensitiveElements.forEach(el => {
+                        if (isPrivacyMode) {
+                            el.classList.add('blur-sensitive');
+                        } else {
+                            el.classList.remove('blur-sensitive');
+                        }
+                    });
+                }
+
+                // Security: Idle Session Timeout
+                let idleTimer;
+                const IDLE_LIMIT = 60 * 1000; // 1 minute for demo (usually 5-15 mins)
+
+                function resetIdleTimer() {
+                    clearTimeout(idleTimer);
+                    // Hide lock screen if previously locked? No, only manual unlock.
+                    // Actually, getting input implies presence, but if locked, we ignore unless it's the unlock action.
+                    const lockScreen = document.getElementById('session-lock');
+                    if (lockScreen.style.display === 'flex') return;
+
+                    idleTimer = setTimeout(() => {
+                        lockScreen.style.display = 'flex';
+                    }, IDLE_LIMIT);
+                }
+
+                function unlockSession() {
+                    document.getElementById('session-lock').style.display = 'none';
+                    resetIdleTimer();
+                }
+
+                // Listen for activity
+                window.onload = function () {
+                    document.body.addEventListener('mousemove', resetIdleTimer);
+                    document.body.addEventListener('keypress', resetIdleTimer);
+                    resetIdleTimer(); // Start
+
+                    // Existing init calls
+                    // ...
+                }
+
+                // Security Activity Log
+                function loadSecurityLog() {
+                    const tbody = document.getElementById('security-log-body');
+                    if (!tbody) return;
+
+                    const events = [
+                        { event: 'Login', loc: 'Hyderabad, IN', time: 'Just now', status: 'Success' },
+                        { event: 'Password Change', loc: 'Hyderabad, IN', time: '2 days ago', status: 'Verified' },
+                        { event: 'New Device', loc: 'Bangalore, IN', time: '5 days ago', status: 'Authorized' },
+                        { event: 'Login', loc: 'Hyderabad, IN', time: '1 week ago', status: 'Success' }
+                    ];
+
+                    tbody.innerHTML = events.map(e => `
+    <tr style="border-bottom: 1px solid #f7fafc;">
+        <td style="padding: 8px; font-weight: 500; color: #2d3748;">${e.event}</td>
+        <td style="padding: 8px; color: #718096;">${e.loc}</td>
+        <td style="padding: 8px; color: #718096;">${e.time}</td>
+        <td style="padding: 8px;"><span style="color: #48bb78; font-weight: bold;">● ${e.status}</span></td>
+    </tr>
+    `).join('');
+                }
+
+                // Gamification / Badges Logic
+                function loadBadges() {
+                    const container = document.getElementById('full-achievements-list');
+                    if (!container) return;
+
+                    // --- Gamification State ---
+                    // Mock data or fetch from localStorage
+                    const loginTime = new Date().getHours();
+                    const hasShared = localStorage.getItem('certichain_shared_linkedin') === 'true'; // Set this when sharing
+                    const streak = parseInt(localStorage.getItem('certichain_streak') || '1'); // Default 1
+
+                    document.getElementById('streak-count').textContent = streak;
+
+                    const allBadges = [
+                        {
+                            id: 'early_adopter', icon: '🚀', name: 'Early Adopter', desc: 'Joined in beta phase', xp: 50,
+                            condition: () => true
+                        },
+                        {
+                            id: 'scholar', icon: '🎓', name: 'Scholar', desc: 'Earned 3+ certificates', xp: 100,
+                            condition: () => certificates.length >= 3,
+                            progress: Math.min(certificates.length, 3) / 3 * 100, max: 3
+                        },
+                        {
+                            id: 'master', icon: '👑', name: 'Master', desc: 'Earned 5+ certificates', xp: 200,
+                            condition: () => certificates.length >= 5,
+                            progress: Math.min(certificates.length, 5) / 5 * 100, max: 5
+                        },
+                        {
+                            id: 'networker', icon: '🌐', name: 'Networker', desc: 'Verified identity', xp: 75,
+                            condition: () => true, progress: 100, max: 1
+                        },
+                        {
+                            id: 'security_first', icon: '🔒', name: 'Security First', desc: 'Enabled 2FA or Privacy Mode', xp: 50,
+                            condition: () => false,
+                            progress: 0, max: 1
+                        },
+                        {
+                            id: 'collector', icon: '📚', name: 'Collector', desc: 'Downloaded a certificate', xp: 25,
+                            condition: () => false,
+                            progress: 0, max: 1
+                        },
+                        // --- New Interactive Badges ---
+                        {
+                            id: 'night_owl', icon: '🦉', name: 'Night Owl', desc: 'Logged in late (10 PM - 4 AM)', xp: 150,
+                            condition: () => (loginTime >= 22 || loginTime <= 4),
+                            progress: (loginTime >= 22 || loginTime <= 4) ? 100 : 0
+                        },
+                        {
+                            id: 'socialite', icon: '📢', name: 'Socialite', desc: 'Shared a certificate on LinkedIn', xp: 100,
+                            condition: () => hasShared,
+                            progress: hasShared ? 100 : 0
+                        }
+                    ];
+
+                    // --- XP & Level Calculation ---
+                    let currentXP = 0;
+                    let unlockedCount = 0;
+
+                    allBadges.forEach(b => {
+                        if (b.condition()) {
+                            currentXP += b.xp;
+                            unlockedCount++;
+                        }
+                    });
+
+                    // Base XP for Certificates (e.g. 50 XP per cert)
+                    currentXP += (certificates.length * 50);
+
+                    // Level Logic: Level N needs N * 200 XP
+                    // Or simple: Level = Math.floor(XP / 200) + 1
+                    const xpPerLevel = 250;
+                    const level = Math.floor(currentXP / xpPerLevel) + 1;
+                    const nextLevelXP = level * xpPerLevel;
+                    const xpInCurrentLevel = currentXP % xpPerLevel;
+                    const levelProgress = (xpInCurrentLevel / xpPerLevel) * 100;
+
+                    // Update UI Stats
+                    const totalBadges = document.getElementById('total-badges-count');
+                    if (totalBadges) totalBadges.textContent = unlockedCount + '/' + allBadges.length;
+
+                    // Update Rank UI
+                    const rankEl = document.getElementById('current-rank');
+                    if (rankEl) {
+                        let rankTitle = "Novice 🛡️";
+                        if (level >= 5) rankTitle = "Legend 🌟";
+                        else if (level >= 3) rankTitle = "Expert ⚔️";
+                        else if (level >= 2) rankTitle = "Apprentice 🔮";
+
+                        rankEl.textContent = `Level ${level}: ${rankTitle}`;
+                    }
+
+                    // Update XP UI
+                    document.getElementById('current-xp').textContent = currentXP;
+                    document.getElementById('xp-to-next').textContent = `${xpPerLevel - xpInCurrentLevel} XP to Level ${level + 1}`;
+
+                    // Animate Bar
+                    setTimeout(() => {
+                        const bar = document.getElementById('level-progress-bar');
+                        if (bar) bar.style.width = levelProgress + '%';
+                    }, 500);
+
+
+                    // Render Badges
+                    if (container) {
+                        container.innerHTML = allBadges.map(badge => {
+                            const unlocked = badge.condition();
+                            const progress = badge.progress !== undefined ? badge.progress : (unlocked ? 100 : 0);
+
+                            // Use CSS variable for animation dynamic width if we wanted strictly CSS, 
+                            // but inline style is easier for dynamic JS values.
+                            return `
+                            <div class="${unlocked ? 'badge-unlock' : ''}" style="background: white; border-radius: 15px; padding: 20px; text-align: center; border: 1px solid ${unlocked ? '#48bb78' : '#e2e8f0'}; position: relative; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.3s;">
+                                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 5px; background: #edf2f7;">
+                                    <div class="animated-progress" style="height: 100%; background: ${unlocked ? '#48bb78' : '#667eea'}; --target-width: ${progress}%;"></div>
+                                </div>
+                                <div style="font-size: 40px; margin-bottom: 10px; filter: ${unlocked ? 'none' : 'grayscale(100%) opacity(0.5)'};">
+                                    ${badge.icon}
+                                </div>
+                                <h4 style="color: ${unlocked ? '#2d3748' : '#a0aec0'}; margin-bottom: 5px; font-size: 1.1rem;">${badge.name}</h4>
+                                <p style="color: ${unlocked ? '#718096' : '#cbd5e0'}; font-size: 0.9rem; margin-bottom: 5px;">${badge.desc}</p>
+                                <div style="font-size: 0.75rem; color: #a0aec0; margin-bottom: 8px;">Rewarding: <strong>${badge.xp} XP</strong></div>
+                                <div style="font-size: 0.8rem; font-weight: bold; color: ${unlocked ? '#48bb78' : '#667eea'};">
+                                    ${unlocked ? 'Unlocked! 🎉' : `Progress: ${Math.round(progress)}%`}
+                                </div>
+                            </div>
+                            `;
+                        }).join('');
+                    }
+                }
+
+                function closeJobModal() {
+                    document.getElementById('job-modal').style.display = 'none';
+                }
+
+                function openJobModal(job) {
+                    const modal = document.getElementById('job-modal');
+                    document.getElementById('modal-title').innerText = job.title;
+                    document.getElementById('modal-company').innerText = job.company;
+                    document.getElementById('modal-icon').innerText = job.icon;
+                    document.getElementById('modal-salary').innerText = job.salary;
+                    document.getElementById('modal-desc').innerText = job.description || job.focus; // Fallback
+                    document.getElementById('modal-link').href = job.link || "#";
+
+                    const skillContainer = document.getElementById('modal-skills');
+                    skillContainer.innerHTML = job.skills_detailed
+                        ? job.skills_detailed.map(s => `<span
+        style="background: #edf2f7; color: #4a5568; padding: 4px 10px; border-radius: 15px; font-size: 12px; border: 1px solid #e2e8f0;">${s}</span>`).join('')
+                        : job.req.map(s => `<span
+        style="background: #edf2f7; color: #4a5568; padding: 4px 10px; border-radius: 15px; font-size: 12px; border: 1px solid #e2e8f0;">${s}</span>`).join('');
+
+                    modal.style.display = 'flex';
+                }
+
+                // AI Job Matcher Logic
+                function loadJobs() {
+                    const container = document.getElementById('job-list');
+                    if (!container) return;
+
+                    // Simple keyword matching based on certificate titles
+                    const skills = certificates.map(c => c.type.toLowerCase());
+
+                    // 2026 Career Data
+                    const allJobs = [
+                        // Cybersecurity
+                        {
+                            title: 'Incident Responder',
+                            company: 'CyberDefense Corp',
+                            icon: '🚨',
+                            salary: '$110k - $135k',
+                            focus: 'Directing technical response to active breaches.',
+                            req: ['cyber', 'security', 'cysa'],
+                            description: `Lead the technical response to major security incidents. You will analyze attack patterns, contain
+    breaches, and perform root cause analysis using advanced forensics tools.Experience with living - off - the - land
+    attacks is a must.`,
+                            skills_detailed: ["Forensics", "Malware Analysis", "Python Scripting", "SIEM Tools"],
+                            link: "https://www.linkedin.com/jobs/search/?keywords=Incident%20Responder"
+                        },
+                        {
+                            title: 'Digital Forensics Analyst',
+                            company: 'Global Forensics',
+                            icon: '🔍',
+                            salary: '$95k - $115k',
+                            focus: 'Investigating cybercrime & recovering data.',
+                            req: ['forensics', 'cyber', 'ceh'],
+                            description: `Uncover digital evidence for legal evidence. You will recover deleted data, analyze memory dumps, and
+    reconstruct cybercrime timelines.Requires strong knowledge of file systems and legal chain- of - custody.`,
+                            skills_detailed: ["EnCase", "FTK", "Memory Forensics", "Legal Compliance"],
+                            link: "https://www.linkedin.com/jobs/search/?keywords=Digital%20Forensics"
+                        },
+                        {
+                            title: 'Detection Engineer',
+                            company: 'ThreatHunter Inc',
+                            icon: '🛡️',
+                            salary: '$120k - $150k',
+                            focus: 'Building automated defenses & hunting anomalies.',
+                            req: ['security', 'automation', 'python'],
+                            description: `Proactively hunt for threats that evade standard defenses. You will build custom detection rules,
+    automate threat intelligence feeds, and create 'honey' systems to trap attackers.`,
+                            skills_detailed: ["Python Automation", "YARA Rules", "Threat Intelligence", "Honeypots"],
+                            link: "https://www.linkedin.com/jobs/search/?keywords=Detection%20Engineer"
+                        },
+                        {
+                            title: 'SOC Analyst (L1/L2)',
+                            company: 'SecureNet',
+                            icon: '👁️',
+                            salary: '$75k - $95k',
+                            focus: 'Monitoring security systems (Entry Level).',
+                            req: ['security', 'network', 'soc'],
+                            description: `The first line of defense. Monitor security dashboards, triage alerts, and escalate critical
+                    incidents.Perfect entry - level role for those with a passion for network security.`,
+                            skills_detailed: ["Network Monitoring", "Splunk", "Incident Triage", "TCP/IP"],
+                            link: "https://www.linkedin.com/jobs/search/?keywords=SOC%20Analyst"
+                        },
+
+                        // AI & Machine Learning
+                        {
+                            title: 'Agentic AI Engineer',
+                            company: 'Neural Systems',
+                            icon: '🧠',
+                            salary: '$140k - $180k',
+                            focus: 'Deploying autonomous AI systems.',
+                            req: ['ai', 'ml', 'python'],
+                            description: `Design AI systems that can independently plan and execute tasks. You will work with Large Language
+                    Models(LLMs) and reinforcement learning to create autonomous agents for enterprise automation.`,
+                            skills_detailed: ["LLMs", "Reinforcement Learning", "LangChain", "Python"],
+                            link: "https://www.linkedin.com/jobs/search/?keywords=Agentic%20AI"
+                        },
+                        {
+                            title: 'Prompt Engineer',
+                            company: 'GenAI Solutions',
+                            icon: '🗣️',
+                            salary: '$100k - $130k',
+                            focus: 'Bridging LLMs and business applications.',
+                            req: ['ai', 'prompt', 'genai'],
+                            description: `Optimize the performance of generative AI models. You will design advanced prompts, fine-tune model
+                    parameters, and evaluate outputs to ensure accuracy and relevance for business use cases.`,
+                            skills_detailed: ["NLP", "Model Tuning", "Python", "Creative Writing"],
+                            link: "https://www.linkedin.com/jobs/search/?keywords=Prompt%20Engineer"
+                        },
+                        {
+                            title: 'AI Ethicist',
+                            company: 'Tech Ethics Board',
+                            icon: '⚖️',
+                            salary: '$110k - $140k',
+                            focus: 'Ensuring unbiased & compliant AI systems.',
+                            req: ['ai', 'ethics', 'policy'],
+                            description: `Ensure AI systems are fair, transparent, and compliant with global regulations. You will audit models
+                    for bias, draft privacy policies, and advise engineering teams on ethical AI development.`,
+                            skills_detailed: ["AI Law", "Bias Auditing", "GDPR", "Risk Assessment"],
+                            link: "https://www.linkedin.com/jobs/search/?keywords=AI%20Ethicist"
+                        },
+
+                        // Blockchain & Web3
+                        {
+                            title: 'Smart Contract Auditor',
+                            company: 'ChainGuard',
+                            icon: '⛓️',
+                            salary: '$130k - $160k',
+                            focus: 'Finding vulnerabilities in Solidity/Rust code.',
+                            req: ['blockchain', 'audit', 'contract'],
+                            description: `Secure the decentralized web. You will review smart contract code for vulnerabilities (like reentrancy
+    attacks), optimize gas usage, and ensure the safety of millions in digital assets.`,
+                            skills_detailed: ["Solidity", "Rust", "Security Auditing", "Cryptography"],
+                            link: "https://www.linkedin.com/jobs/search/?keywords=Smart%20Contract%20Auditor"
+                        },
+                        {
+                            title: 'Web3 Developer',
+                            company: 'Decentralized Apps',
+                            icon: '🌐',
+                            salary: '$115k - $145k',
+                            focus: 'Building dApps with React & Node.js.',
+                            req: ['blockchain', 'web', 'react'],
+                            description: `Build the frontend and backend of decentralized applications. You will connect traditional web
+                    frameworks(React) with blockchain networks using libraries like Ethers.js and Web3.js.`,
+                            skills_detailed: ["React", "Node.js", "Ethers.js", "IPFS"],
+                            link: "https://www.linkedin.com/jobs/search/?keywords=Web3%20Developer"
+                        },
+
+                        // Health Informatics
+                        {
+                            title: 'Health Informatics Specialist',
+                            company: 'MediTech Health',
+                            icon: '🧬',
+                            salary: '$90k - $120k',
+                            focus: 'Analyzing patient data for clinical outcomes.',
+                            req: ['health', 'data', 'informatics'],
+                            description: `Improve patient care through data. You will analyze clinical datasets to identify trends, optimize
+    hospital workflows, and ensure the interoperability of Electronic Health Records(EHR) systems.`,
+                            skills_detailed: ["Data Analysis", "EHR Systems", "SQL", "Healthcare Standards"],
+                            link: "https://www.linkedin.com/jobs/search/?keywords=Health%20Informatics"
+                        },
+                        {
+                            title: 'Data Privacy Officer',
+                            company: 'HealthSecure',
+                            icon: '🔒',
+                            salary: '$105k - $135k',
+                            focus: 'Ensuring compliance with DPDP / GDPR.',
+                            req: ['privacy', 'security', 'compliance'],
+                            description: `Guardian of patient privacy. You will oversee data protection strategies, ensure compliance with laws
+    like HIPAA and GDPR, and manage responses to data privacy breaches.`,
+                            skills_detailed: ["Privacy Law", "Risk Management", "Compliance Auditing", "Legal Frameworks"],
+                            link: "https://www.linkedin.com/jobs/search/?keywords=Data%20Privacy%20Officer"
+                        }
+                    ];
+
+                    // Filter jobs (Show all if no specific skills verified yet, or specific ones)
+                    let jobsToShow = [];
+
+                    if (certificates.length === 0) {
+                        jobsToShow = allJobs.filter(j => j.title.includes('SOC') || j.title.includes('Forensics') ||
+                            j.title.includes('Prompt'));
+                    } else {
+                        jobsToShow = allJobs.filter(job => job.req.some(r => skills.some(s => s.includes(r))));
+                        if (jobsToShow.length < 3) {
+                            const padding = allJobs.filter(j => !jobsToShow.includes(j)).sort(() => 0.5 -
+                                Math.random()).slice(0, 3);
+                            jobsToShow = [...jobsToShow, ...padding];
+                        }
+                    }
+
+                    // Render with OnClick event
+                    window.currentJobs = jobsToShow; // Quick hack to access job obj
+                    container.innerHTML = jobsToShow.map((job, index) => {
+                        return `
+        <div
+            style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--primary-color); box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
+                <div style="display: flex; align-items: center;">
+                    <span style="font-size: 24px; margin-right: 12px;">${job.icon}</span>
+                    <div>
+                        <div style="font-weight: 700; font-size: 15px; color: var(--primary-color);">${job.title}</div>
+                        <div style="font-size: 12px; color: #718096; font-weight: 600;">${job.company}</div>
+                    </div>
+                </div>
+                <span
+                    style="background: #e2e8f0; color: #2d3748; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">${job.salary}</span>
+            </div>
+            <div style="font-size: 12px; color: #4a5568; margin-bottom: 8px; line-height: 1.4;">${job.focus}</div>
+            <button onclick="openJobModal(window.currentJobs[${index}])"
+                style="width: 100%; background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%); color: white; border: none; padding: 6px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 500;">View
+                Details & Apply 🚀</button>
+        </div>
+        `;
+                    }).join('');
+                }
+                // 🚀 Smart Resume Builder 2026
+                async function generateResume() {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    const pageWidth = 210;
+
+                    // --- Modern Header Design ---
+                    doc.setFillColor(30, 41, 59); // Dark Slate (Cyber)
+                    doc.rect(0, 0, pageWidth, 50, 'F');
+
+                    // Name & Title
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(26);
+                    doc.setFont("helvetica", "bold");
+                    doc.text("Student Name", 20, 25); // Dynamic Name Placeholder
+
+                    doc.setFontSize(14);
+                    doc.setTextColor(72, 187, 120); // Green Accent
+                    doc.setFont("helvetica", "bold");
+                    doc.text("CYBERSECURITY & AI ENGINEER | 2026 READY", 20, 35);
+
+                    doc.setFontSize(10);
+                    doc.setTextColor(200, 200, 200);
+                    doc.setFont("helvetica", "normal");
+                    doc.text("alex@certichain.io | Blockchain ID: 0x8a...3f | verified by CertiChain", 20, 45);
+
+                    let yPos = 70;
+
+                    // --- Section: Professional Summary ---
+                    doc.setFontSize(16);
+                    doc.setTextColor(45, 55, 72); // Dark Text
+                    doc.setFont("helvetica", "bold");
+                    doc.text("PROFESSIONAL SUMMARY", 20, yPos);
+
+                    // Underline
+                    doc.setLineWidth(0.5);
+                    doc.setDrawColor(100, 100, 100);
+                    doc.line(20, yPos + 2, 190, yPos + 2);
+                    yPos += 10;
+
+                    doc.setFontSize(10);
+                    doc.setTextColor(60, 60, 60);
+                    doc.setFont("helvetica", "normal");
+                    const summary = `Results-oriented professional specializing in Autonomous Defense and Agentic AI systems. Proven
+        ability to bridge the gap between Predictive Cybersecurity and Artificial Intelligence.Expert in Smart Contract
+                    Auditing(Solidity / Rust) and Health Informatics Compliance(GDPR / DPDP).`;
+                    const splitSummary = doc.splitTextToSize(summary, 170);
+                    doc.text(splitSummary, 20, yPos);
+                    yPos += 20;
+
+                    // --- Section: Core Competencies (2026) ---
+                    doc.setFontSize(16);
+                    doc.setTextColor(45, 55, 72);
+                    doc.setFont("helvetica", "bold");
+                    doc.text("CORE SKILLS & TECH STACK", 20, yPos);
+                    doc.line(20, yPos + 2, 190, yPos + 2);
+                    yPos += 10;
+
+                    const skills = [
+                        "🛡️ Cybersecurity: Threat Hunting, SIEM/SOAR, Forensics",
+                        "🧠 AI/ML: Agentic AI, Prompt Engineering, Model Tuning",
+                        "⛓️ Blockchain: Smart Contracts, Zero-Knowledge Proofs",
+                        "🖥️ Tech: Python, React, Solidity, Rust, TensorFlow"
+                    ];
+
+                    skills.forEach(skill => {
+                        doc.setFontSize(11);
+                        doc.setTextColor(0, 0, 0);
+                        doc.text("• " + skill, 25, yPos);
+                        yPos += 7;
+                    });
+                    yPos += 10;
+
+                    // --- Section: Certifications History ---
+                    doc.setFontSize(16);
+                    doc.setTextColor(45, 55, 72);
+                    doc.setFont("helvetica", "bold");
+                    doc.text("VERIFIED CERTIFICATIONS", 20, yPos);
+                    doc.line(20, yPos + 2, 190, yPos + 2);
+                    yPos += 12;
+
+                    doc.setFontSize(10);
+                    certificates.forEach((cert, i) => {
+                        // Striped row
+                        if (i % 2 === 0) {
+                            doc.setFillColor(240, 244, 248);
+                            doc.rect(20, yPos - 6, 170, 14, 'F');
+                        }
+
+                        doc.setTextColor(0, 0, 0);
+                        doc.setFont("helvetica", "bold");
+                        doc.text(cert.type, 25, yPos);
+
+                        doc.setFont("helvetica", "normal");
+                        doc.setTextColor(100, 100, 100);
+                        doc.text(cert.issueDate || "2023-01-01", 150, yPos);
+
+                        doc.setFontSize(8);
+                        doc.text(`ID: ${cert.id.substring(0, 12)}...`, 25, yPos + 5);
+
+                        doc.setFontSize(10);
+                        yPos += 16;
+
+                        // Safety for long lists
+                        if (yPos > 270) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                    });
+
+                    // --- Footer ---
+                    doc.setFontSize(8);
+                    doc.setTextColor(150, 150, 150);
+                    const date = new Date().toLocaleDateString();
+                    doc.text(`Generated by CertiChain AI Resume Builder | ${date}`, pageWidth / 2, 290, { align: "center" });
+
+                    doc.save("Alexander_Cybernetic_Resume_2026.pdf");
+                }
+
+                // Global Language Toggle (i18n Mock)
+                const i18n = {
+                    en: {
+                        welcome: "Welcome back,",
+                        subtitle: "Manage and verify digital certificates using blockchain technology",
+                        skills: "🕸️ Skill Network",
+                        achievements: "🏆 Achievements",
+                        jobs: "💼 Career Opportunities",
+                        verify: "🔍 Verify Certificate",
+                        verify_desc: "Verify the authenticity of certificates using blockchain records"
+                    },
+                    es: {
+                        welcome: "Bienvenido de nuevo,",
+                        subtitle: "Gestiona y verifica certificados digitales usando tecnología blockchain",
+                        skills: "🕸️ Red de Habilidades",
+                        achievements: "🏆 Logros",
+                        jobs: "💼 Oportunidades Laborales",
+                        verify: "🔍 Verificar Certificado",
+                        verify_desc: "Verifica la autenticidad de certificados usando registros blockchain"
+                    },
+                    fr: {
+                        welcome: "Bon retour,",
+                        subtitle: "Gérez et vérifiez les certificats numériques via la blockchain",
+                        skills: "🕸️ Réseau de Compétences",
+                        achievements: "🏆 Réalisations",
+                        jobs: "💼 Opportunités de Carrière",
+                        verify: "🔍 Vérifier le Certificat",
+                        verify_desc: "Vérifiez l'authenticité des certificats via la blockchain"
+                    }
+                };
+
+                function changeLanguage(lang) {
+                    const t = i18n[lang];
+
+                    // Update Text Content directly for specific IDs (add IDs to HTML if needed, or querySelectors)
+                    document.querySelector('h2').childNodes[0].nodeValue = t.welcome + " "; // "Welcome back, "
+                    document.querySelector('h2 + p').textContent = t.subtitle;
+
+                    // Cards (using simple nth-child or adding IDs would be better, but let's try direct selector for speed)
+                    // Note: In a real app we'd add data-i18n attributes. For now, we'll target by known structure
+
+                    const cards = document.querySelectorAll('.card h3');
+                    cards.forEach(h3 => {
+                        if (h3.textContent.includes('Skill')) h3.textContent = t.skills;
+                        if (h3.textContent.includes('Achievements')) h3.textContent = t.achievements;
+                        if (h3.textContent.includes('Career')) h3.textContent = t.jobs;
+                        if (h3.textContent.includes('Verify')) h3.textContent = t.verify;
+                    });
+
+                    // Verify Desc
+                    const verifyP = document.querySelectorAll('.card p');
+                    verifyP.forEach(p => {
+                        if (p.textContent.includes('authenticity')) p.textContent = t.verify_desc;
+                    });
+
+                    // Save preference
+                    localStorage.setItem('certichain_lang', lang);
+                }
+
+                // Learning Analytics (Chart.js)
+                function initAnalytics() {
+                    const ctx1 = document.getElementById('learningChart');
+                    const ctx2 = document.getElementById('skillRadarChart');
+
+                    if (!ctx1 || !ctx2) return;
+
+                    // Chart 1: Certificates per Month (Mock data derived from certs if possible, else random)
+                    new Chart(ctx1, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                            datasets: [{
+                                label: 'Certificates Earned',
+                                data: [1, 0, 2, 1, 3, certificates.length], // Mock trend + current total
+                                backgroundColor: '#667eea',
+                                borderRadius: 5
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: { beginAtZero: true, ticks: { precision: 0 } }
+                            },
+                            plugins: {
+                                legend: { display: false },
+                                title: { display: true, text: 'Monthly Progress' }
+                            }
+                        }
+                    });
+
+                    // Chart 2: Skill Distribution
+                    // Calculate skill counts
+                    const skillCounts = {};
+                    certificates.forEach(c => {
+                        const type = c.type.split(' ')[0]; // First word as category
+                        skillCounts[type] = (skillCounts[type] || 0) + 1;
+                    });
+
+                    const labels = Object.keys(skillCounts).length ? Object.keys(skillCounts) : ['React', 'Blockchain', 'Security',
+                        'Design'];
+                    const data = Object.keys(skillCounts).length ? Object.values(skillCounts) : [3, 4, 2, 5];
+
+                    new Chart(ctx2, {
+                        type: 'radar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Skill Proficiency',
+                                data: data,
+                                backgroundColor: 'rgba(72, 187, 120, 0.2)',
+                                borderColor: '#48bb78',
+                                pointBackgroundColor: '#48bb78'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: { display: true, text: 'Skill Radar' }
+                            },
+                            scales: {
+                                r: { beginAtZero: true, ticks: { display: false } }
+                            }
+                        }
+                    });
+                }
+
+                // Theme Picker Logic
+                function setTheme(primary, accent) {
+                    document.documentElement.style.setProperty('--primary-color', primary);
+                    document.documentElement.style.setProperty('--accent-color', accent);
+
+                    // Persist
+                    localStorage.setItem('certichain_theme', JSON.stringify({ primary, accent }));
+                }
+
+                function initTheme() {
+                    const saved = JSON.parse(localStorage.getItem('certichain_theme'));
+                    if (saved) {
+                        setTheme(saved.primary, saved.accent);
+                    }
+                }
+
+                // Add to init
+                const existingInit = typeof initNotifications === 'function' ? initNotifications : function () { };
+                initNotifications = function () {
+                    existingInit();
+                    loadBadges();
+                    loadJobs();
+                    loadSecurityLog();
+                    initAnalytics();
+                    initTheme();
+                };
+
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Skill Network | CertiChain</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Vis.js for Network Graph -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #0f172a;
+            color: #fff;
+            overflow: hidden;
+            /* Prevent scrolling, canvas takes full screen */
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Navbar (Compact for this view) */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: #fff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo span {
+            color: #3b82f6;
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-btn {
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-btn:hover {
+            color: #fff;
+        }
+
+        /* Network Canvas Container */
+        #network-container {
+            width: 100%;
+            height: 100vh;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* Floating Controls UI */
+        .controls-panel {
+            position: fixed;
+            top: 80px;
+            left: 40px;
+            width: 300px;
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            z-index: 10;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+            animation: slideInLeft 0.5s ease-out;
+        }
+
+        @keyframes slideInLeft {
+            from {
+                transform: translateX(-50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .controls-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #3b82f6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .search-network {
+            width: 100%;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: white;
+            margin-bottom: 15px;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .search-network:focus {
+            border-color: #3b82f6;
+        }
+
+        .legend {
+            margin-top: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 5px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        /* Detail Card (Right Side) */
+        .detail-card {
+            position: fixed;
+            top: 80px;
+            right: 40px;
+            width: 320px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid #3b82f6;
+            border-radius: 16px;
+            padding: 25px;
+            z-index: 10;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+            transform: translateX(400px);
+            /* Hidden by default */
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .detail-card.active {
+            transform: translateX(0);
+        }
+
+        .skill-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .skill-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 5px;
+            background: linear-gradient(90deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .skill-category {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #3b82f6;
+            margin-bottom: 15px;
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .skill-stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #cbd5e0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 8px;
+        }
+
+        .skill-stat span:last-child {
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .related-certs {
+            margin-top: 20px;
+        }
+
+        .related-header {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .cert-chip {
+            display: block;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-bottom: 5px;
+            border-left: 2px solid #3b82f6;
+        }
+
+        /* Loading Overlay */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0f172a;
+            z-index: 200;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            transition: opacity 0.5s;
+        }
+
+        .loader-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s infinite linear;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Preloader -->
+    <div id="loader">
+        <div class="loader-spinner"></div>
+        <div style="font-family: 'Courier New'; color: #3b82f6; letter-spacing: 2px;">INITIALIZING NEURAL GRAPH...</div>
+    </div>
+
+    <nav class="navbar">
+        <a href="student_dashboard.html" class="logo">
+            🔗 <span>CertiChain</span>
+        </a>
+        <div class="nav-actions">
+            <a href="student_dashboard.html" class="nav-btn">Dashboard</a>
+            <a href="#" class="nav-btn" style="color: #3b82f6;">Skill Network</a>
+            <a href="index.html" class="nav-btn">Logout</a>
+        </div>
+    </nav>
+
+    <!-- Controls -->
+    <div class="controls-panel">
+        <div class="controls-header">
+            <span>Graph Controls</span>
+            <span style="font-size: 12px; cursor: pointer;" onclick="network.fit()">⟲ Reset</span>
+        </div>
+        <input type="text" class="search-network" id="searchNode" placeholder="Find a skill (e.g. 'React')..."
+            onkeyup="filterGraph()">
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="dot" style="background: #3b82f6;"></div> Core Competency
+            </div>
+            <div class="legend-item">
+                <div class="dot" style="background: #a855f7;"></div> Advanced Tech
+            </div>
+            <div class="legend-item">
+                <div class="dot" style="background: #10b981;"></div> Soft Skill / Theory
+            </div>
+            <div class="legend-item">
+                <div class="dot" style="background: #f59e0b;"></div> Pending Verification
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; font-size: 12px; color: #64748b; line-height: 1.5;">
+            TIP: Drag nodes to rearrange your learning path. Double-click to focus.
+        </div>
+    </div>
+
+    <!-- Main Network Canvas -->
+    <div id="network-container"></div>
+
+    <!-- Details Sidebar -->
+    <div class="detail-card" id="detailCard">
+        <span class="skill-icon" id="d_icon">⚡</span>
+        <div class="skill-category" id="d_category">Core Tech</div>
+        <div class="skill-title" id="d_title">React.js</div>
+
+        <div style="margin-top: 20px;">
+            <div class="skill-stat">
+                <span>Proficiency</span>
+                <span style="color: #3b82f6;" id="d_level">Expert (92%)</span>
+            </div>
+            <div class="skill-stat">
+                <span>Verified By</span>
+                <span id="d_verified">CertiChain</span>
+            </div>
+            <div class="skill-stat">
+                <span>Last Used</span>
+                <span>2 days ago</span>
+            </div>
+        </div>
+
+        <div class="related-certs">
+            <div class="related-header">Linked Certificates</div>
+            <div id="d_cert_list">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+        <button onclick="closeDetails()"
+            style="margin-top: 20px; width: 100%; padding: 10px; background: rgba(255,255,255,0.05); color: #94a3b8; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s;">
+            Close Panel
+        </button>
+    </div>
+
+    <script>
+        // --- 1. Data Definition ---
+        // Nodes represent Skills. Groups define color/shape.
+        // Title is used for matching with Certificates
+        const nodesData = [
+            // Core Web
+            { id: 1, label: 'HTML5', group: 'core', value: 20, title: 'HTML5', keywords: ['html', 'web'] },
+            { id: 2, label: 'CSS3', group: 'core', value: 20, title: 'CSS3', keywords: ['css', 'style'] },
+            { id: 3, label: 'JavaScript', group: 'core', value: 30, title: 'JavaScript', keywords: ['javascript', 'js'] },
+            { id: 4, label: 'React.js', group: 'tech', value: 25, title: 'React.js', keywords: ['react', 'frontend'] },
+            { id: 5, label: 'Node.js', group: 'tech', value: 25, title: 'Node.js', keywords: ['node', 'backend'] },
+            { id: 6, label: 'Next.js', group: 'tech', value: 22, title: 'Next.js', keywords: ['next.js', 'react'] },
+
+            // Blockchain
+            { id: 7, label: 'Solidity', group: 'tech', value: 28, title: 'Solidity', keywords: ['solidity', 'smart contract'] },
+            { id: 8, label: 'Web3.js', group: 'tech', value: 24, title: 'Web3.js', keywords: ['web3', 'dapp'] },
+            { id: 9, label: 'Ethereum', group: 'tech', value: 26, title: 'Ethereum', keywords: ['ethereum', 'blockchain'] },
+            { id: 10, label: 'IPFS', group: 'tech', value: 20, title: 'IPFS', keywords: ['ipfs', 'storage'] },
+
+            // Security
+            { id: 11, label: 'Cybersecurity', group: 'security', value: 35, title: 'Cybersecurity', keywords: ['cyber', 'security'] },
+            { id: 12, label: 'Pen Testing', group: 'security', value: 28, title: 'Penetration Testing', keywords: ['pen testing', 'hack'] },
+            { id: 13, label: 'Cryptography', group: 'security', value: 25, title: 'Cryptography', keywords: ['crypto', 'encryption'] },
+            { id: 14, label: 'Network Sec', group: 'security', value: 22, title: 'Network Security', keywords: ['network', 'firewall'] },
+
+            // AI
+            { id: 15, label: 'Python', group: 'tech', value: 30, title: 'Python', keywords: ['python', 'scripting'] },
+            { id: 16, label: 'TensorFlow', group: 'tech', value: 25, title: 'TensorFlow', keywords: ['tensorflow', 'ml'] },
+            { id: 17, label: 'LLMs', group: 'tech', value: 28, title: 'Large Language Models', keywords: ['llm', 'gpt'] },
+            { id: 18, label: 'Prompt Eng', group: 'soft', value: 20, title: 'Prompt Engineering', keywords: ['prompt', 'ai'] },
+        ];
+
+        // Edges represent prerequisites or relationships
+        const edgesData = [
+            { from: 1, to: 2 },
+            { from: 1, to: 3 },
+            { from: 2, to: 3 },
+            { from: 3, to: 4 }, // JS -> React
+            { from: 3, to: 5 }, // JS -> Node
+            { from: 4, to: 6 }, // React -> Next
+            { from: 3, to: 8 }, // JS -> Web3
+            { from: 8, to: 9 }, // Web3 -> Eth
+            { from: 7, to: 9 }, // Solidity -> Eth
+            { from: 5, to: 10 }, // Node -> IPFS
+            { from: 3, to: 15 }, // JS <-> Python (Polyglot)
+            { from: 15, to: 11 }, // Python -> Cyber
+            { from: 15, to: 16 }, // Python -> TF
+            { from: 11, to: 12 },
+            { from: 11, to: 13 },
+            { from: 13, to: 7 }, // Crypto -> Solidity
+            { from: 14, to: 11 },
+            { from: 17, to: 15 },
+            { from: 18, to: 17 }
+        ];
+
+        // --- 2. Configuration & Initialization ---
+        let network;
+        let certificates = [];
+
+        function initNetwork() {
+            // Load Certificates First
+            const stored = localStorage.getItem('certichain_certificates');
+            if (stored) {
+                try {
+                    certificates = JSON.parse(stored);
+                } catch (e) { console.error("Error loading certs", e); }
+            }
+
+            // Process Nodes based on Certificates
+            const processedNodes = nodesData.map(node => {
+                // Check if user has a certificate matching this node
+                // Matches if cert type or description contains one of the keywords
+                const hasCert = certificates.some(c => {
+                    const searchStr = (c.type + " " + c.description).toLowerCase();
+                    return node.keywords.some(k => searchStr.includes(k));
+                });
+
+                // If unlocked
+                if (hasCert) {
+                    return { ...node, borderWidth: 4, shadow: { color: node.group === 'security' ? '#ef4444' : '#3b82f6', size: 15 } };
+                } else {
+                    // Locked state
+                    return { ...node, color: { background: '#1e293b', border: '#334155' }, font: { color: '#64748b' }, group: 'locked' };
+                }
+            });
+
+            const container = document.getElementById('network-container');
+            const data = {
+                nodes: new vis.DataSet(processedNodes),
+                edges: new vis.DataSet(edgesData)
+            };
+
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    font: {
+                        size: 16,
+                        color: '#ffffff',
+                        face: 'Poppins',
+                        strokeWidth: 2,
+                        strokeColor: '#0f172a'
+                    },
+                    borderWidth: 2,
+                    shadow: true
+                },
+                edges: {
+                    width: 2,
+                    color: { color: 'rgba(255, 255, 255, 0.1)', highlight: '#3b82f6' },
+                    smooth: { type: 'continuous' }
+                },
+                groups: {
+                    core: { color: { background: '#3b82f6', border: '#2563eb' } }, // Blue
+                    tech: { color: { background: '#a855f7', border: '#9333ea' } }, // Purple
+                    security: { color: { background: '#ef4444', border: '#dc2626' } }, // Red
+                    soft: { color: { background: '#10b981', border: '#059669' } }  // Green
+                },
+                physics: {
+                    enabled: true,
+                    barnesHut: {
+                        gravitationalConstant: -2000,
+                        centralGravity: 0.3,
+                        springLength: 95,
+                        springConstant: 0.04,
+                        damping: 0.09,
+                        avoidOverlap: 0.2
+                    },
+                    stabilization: { iterations: 150 }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    zoomView: true
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+
+            // Events
+            network.on("click", function (params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const node = nodesData.find(n => n.id === nodeId);
+                    showDetails(node);
+                } else {
+                    closeDetails();
+                }
+            });
+
+            // Loading finish
+            network.once("stabilizationIterationsDone", function () {
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+            });
+        }
+
+        // --- 3. UI Logic ---
+
+        function showDetails(node) {
+            const card = document.getElementById('detailCard');
+            const icons = { core: '🌐', tech: '⚡', security: '🛡️', soft: '🗣️', locked: '🔒' };
+            const categories = { core: 'Core Competency', tech: 'Advanced Tech', security: 'Security Protocol', soft: 'Soft Skill', locked: 'Locked Skill' };
+
+            const isLocked = node.group === 'locked';
+
+            // Find actual matching certs
+            const matchingCerts = certificates.filter(c => {
+                const searchStr = (c.type + " " + c.description).toLowerCase();
+                return node.keywords && node.keywords.some(k => searchStr.includes(k));
+            });
+
+            document.getElementById('d_icon').innerText = icons[node.group] || icons[isLocked ? 'locked' : 'core'];
+            document.getElementById('d_category').innerText = categories[node.group] || (isLocked ? 'Locked' : 'Skill');
+            document.getElementById('d_title').innerText = node.label;
+
+            if (isLocked) {
+                document.getElementById('d_level').innerText = "Locked";
+                document.getElementById('d_level').style.color = "#64748b";
+                document.getElementById('d_verified').innerText = "Not yet verified";
+                document.getElementById('d_cert_list').innerHTML = `<div style="color:#94a3b8; font-style:italic;">Earn a certificate in <strong>${node.label}</strong> to unlock this node.</div>`;
+            } else {
+                document.getElementById('d_level').innerText = `Verified (x${matchingCerts.length})`;
+                document.getElementById('d_level').style.color = "#3b82f6";
+                document.getElementById('d_verified').innerText = "CertiChain Blockchain";
+
+                // Show actual certs
+                if (matchingCerts.length > 0) {
+                    document.getElementById('d_cert_list').innerHTML = matchingCerts.map(c =>
+                        `<div class="cert-chip" style="cursor:pointer;" onclick="window.location.href='student_dashboard.html'">
+                            <strong>${c.type}</strong><br>
+                            <span style="font-size:10px; opacity:0.7;">${c.issuingDate}</span>
+                         </div>`
+                    ).join('');
+                } else {
+                    // Should not happen if unlocked, but fallback
+                    document.getElementById('d_cert_list').innerHTML = "Certificate data synced.";
+                }
+            }
+
+            card.classList.add('active');
+        }
+
+        function closeDetails() {
+            document.getElementById('detailCard').classList.remove('active');
+            network.unselectAll();
+        }
+
+        function filterGraph() {
+            const query = document.getElementById('searchNode').value.toLowerCase();
+            // This is a visual zoom filter
+            const matchingNode = nodesData.find(n => n.label.toLowerCase().includes(query));
+            if (matchingNode) {
+                network.focus(matchingNode.id, {
+                    scale: 1.5,
+                    animation: { duration: 1000, easingFunction: 'easeInOutQuad' }
+                });
+                network.selectNodes([matchingNode.id]);
+                showDetails(matchingNode);
+            }
+        }
+
+        // Initialize
+        window.addEventListener('load', initNetwork);
+
+    </script>
+</body>
+
+</html>

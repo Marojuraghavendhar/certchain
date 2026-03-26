@@ -1,0 +1,22 @@
+{
+  "name": "certichain",
+  "version": "1.0.0",
+  "description": "CertiChain is a decentralized certificate management system that leverages blockchain technology to provide secure, tamper-proof, and verifiable digital certificates. The system addresses the challenges of certificate fraud, verification delays, and centralized trust issues in traditional certificate management.",
+  "main": "config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "hpp": "^0.2.3",
+    "sqlite3": "^5.1.7",
+    "xss-clean": "^0.1.4"
+  }
+}
